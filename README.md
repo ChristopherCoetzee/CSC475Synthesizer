@@ -1,7 +1,7 @@
 # Voice-Controlled Sound Design Synthesizer
 
 CSC 475
-Christopher Coetzee (V01001548) and Bella Nichol (V01007752)
+Christopher Coetzee (V01001548) and Isabella Nichol (V01007752)
 C++ and JUCE
 
 ## Description
@@ -64,7 +64,7 @@ Objective 2: Implement voice control and capture.
 - PI4 (expected): Implement preview and capture; verify captured settings stay fixed during MIDI playback.
 - PI5 (advanced): Add adjustable mapping sensitivity or ranges.
 
-## Bella Nichol
+## Isabella Nichol
 
 Objective 1: Build the interface and visualizations.
 
