@@ -16,7 +16,7 @@ bool SynthVoice::canPlaySound (juce::SynthesiserSound* sound)
 };
 void SynthVoice::startNote (int midiNoteNumber, float velocity, juce::SynthesiserSound *sound, int currentPitchWheelPosition)
 {
-    oscillator.setFrequency(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
+    oscillator.setWaveFrequency(midiNoteNumber);
     adsr.noteOn();
 };
 void SynthVoice::stopNote (float velocity, bool allowTailOff)
@@ -42,7 +42,7 @@ void SynthVoice::prepareToPlay(double sampleRate, int samplesPerBlock, int outpu
     specification.sampleRate = sampleRate;
     specification.numChannels = outputChannels;
     
-    oscillator.prepare(specification);
+    oscillator.prepareToPlay(specification);
     
     
     gain.prepare(specification);
@@ -71,7 +71,7 @@ void SynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     synthesizerBuffer.clear();
     
     juce::dsp::AudioBlock<float> audioBlock { synthesizerBuffer };
-    oscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
+    oscillator.getNextAudioBlock(audioBlock);
     gain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
     
     adsr.applyEnvelopeToBuffer(synthesizerBuffer,0, synthesizerBuffer.getNumSamples());

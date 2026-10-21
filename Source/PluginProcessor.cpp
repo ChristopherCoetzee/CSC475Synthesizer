@@ -161,6 +161,14 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             auto& sustain = *apvts.getRawParameterValue("SUSTAIN" );
             auto& release = *apvts.getRawParameterValue("RELEASE");
             
+            auto& oscWave = *apvts.getRawParameterValue("OSC1WAVETYPE");
+            auto& fmDepth =  *apvts.getRawParameterValue("FMDEPTH");
+            auto& fmFrequency =  *apvts.getRawParameterValue("FMFREQUENCY");
+            
+            
+            
+            voice->getOscillator().setWaveType(oscWave);
+            voice->getOscillator().setFMParameters(fmDepth, fmFrequency);
             voice->update(attack, decay, sustain, release);
         }
     }
@@ -209,6 +217,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
     parameters.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"OSC", 1}, "Oscillator",
         juce::StringArray{"Sine", "Saw", "Square"}, 0));
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMFREQUENCY", "FM Frequency", juce::NormalisableRange<float> { 0.0f, 1000.0f, }, 5.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMDEPTH", "FM Depth", juce::NormalisableRange<float> { 0.0f, 1000.0f, }, 500.0f));
+      
+    
 
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"ATTACK", 1}, "attack",
@@ -225,5 +238,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"RELEASE", 1}, "release",
         juce::NormalisableRange<float>{0.1f, 3.0f}, 0.4f));
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterChoice> ("OSC1WAVETYPE", "Oscillator 1 Wave Type",juce::StringArray { "Sin", "Saw", "Square" }, 0));
 
     return {parameters.begin(), parameters.end()};}
