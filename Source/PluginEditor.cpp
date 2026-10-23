@@ -11,7 +11,7 @@
 
 //==============================================================================
 CSC475SynthesizerAudioProcessorEditor::CSC475SynthesizerAudioProcessorEditor (CSC475SynthesizerAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p), osc (audioProcessor.apvts, "OSC1WAVETYPE"), adsr(audioProcessor.apvts)
+    : AudioProcessorEditor (&p), audioProcessor (p), osc (audioProcessor.apvts, "OSC1WAVETYPE", "FMFREQUENCY", "FMDEPTH"), adsr(audioProcessor.apvts)
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
@@ -36,5 +36,5 @@ void CSC475SynthesizerAudioProcessorEditor::paint (juce::Graphics& g)
 void CSC475SynthesizerAudioProcessorEditor::resized()
 {
     adsr.setBounds(getWidth()/2, 0, getWidth()/2, getHeight());
-    osc.setBounds(10, 10, 100, 40);
+    osc.setBounds(10, 10, 180,200 );
 }
