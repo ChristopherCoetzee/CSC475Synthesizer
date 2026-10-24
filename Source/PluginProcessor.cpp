@@ -218,8 +218,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
         juce::ParameterID{"OSC", 1}, "Oscillator",
         juce::StringArray{"Sine", "Saw", "Square"}, 0));
     
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMFREQUENCY", "FM Frequency", juce::NormalisableRange<float> { 0.0f, 1000.0f, }, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMDEPTH", "FM Depth", juce::NormalisableRange<float> { 0.0f, 1000.0f, }, 500.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMFREQUENCY", "FM Frequency", juce::NormalisableRange<float> { 0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMDEPTH", "FM Depth", juce::NormalisableRange<float> { 0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
       
     
 
