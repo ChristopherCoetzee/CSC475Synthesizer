@@ -11,13 +11,18 @@
 
 //==============================================================================
 CSC475SynthesizerAudioProcessorEditor::CSC475SynthesizerAudioProcessorEditor (CSC475SynthesizerAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p), osc (audioProcessor.apvts, "OSC1WAVETYPE", "FMFREQUENCY", "FMDEPTH"), adsr(audioProcessor.apvts)
+    : AudioProcessorEditor (&p)
+    , audioProcessor (p)
+    , osc (audioProcessor.apvts, "OSC1WAVETYPE", "FMFREQUENCY", "FMDEPTH")
+    , adsr(audioProcessor.apvts)
+    , filter(audioProcessor.apvts,"FILTERTYPE", "FILTERFREQUENCY", "FILTERRESONANCE")
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (400, 300);
+    setSize (800, 600);
     addAndMakeVisible(osc);
     addAndMakeVisible(adsr);
+    addAndMakeVisible(filter);
     
     
 };
@@ -37,4 +42,5 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
 {
     adsr.setBounds(getWidth()/2, 0, getWidth()/2, getHeight());
     osc.setBounds(10, 10, 180,200 );
+    filter.setBounds(10, 250, 180, 200);
 }

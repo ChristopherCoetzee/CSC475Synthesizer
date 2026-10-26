@@ -109,6 +109,8 @@ void CSC475SynthesizerAudioProcessor::prepareToPlay (double sampleRate, int samp
             voice->prepareToPlay(sampleRate, samplesPerBlock, getTotalNumInputChannels());
         }
     }
+    
+    filter.prepareToPlay(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
 }
 
 void CSC475SynthesizerAudioProcessor::releaseResources()
@@ -175,6 +177,17 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     
     synthesizer.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples()); // renders the synths sounds
     
+    // we filter here
+    
+    auto& filterType = *apvts.getRawParameterValue("FILTERTYPE");
+    auto& filterFrequency = *apvts.getRawParameterValue("FILTERFREQUENCY");
+    auto& filterResonance = *apvts.getRawParameterValue("FILTERRESONANCE");
+    
+    
+    filter.updateParameters(filterType, filterFrequency, filterResonance);
+    
+    filter.process(buffer);
+    
 };
 
 //==============================================================================
@@ -240,5 +253,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
         juce::NormalisableRange<float>{0.1f, 3.0f}, 0.4f));
     
     parameters.push_back(std::make_unique<juce::AudioParameterChoice> ("OSC1WAVETYPE", "Oscillator 1 Wave Type",juce::StringArray { "Sin", "Saw", "Square" }, 0));
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterChoice> ("FILTERTYPE", "Filter Type",juce::StringArray { "Low-Pass", "Band-Pass", "High-Pass" }, 0));
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"FILTERFREQUENCY", 1}, "Filter Frequency",
+        juce::NormalisableRange<float>{20.0f, 20000.0f, 0.1f, 0.6f}, 200.0f));
+   
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"FILTERRESONANCE", 1}, "Filter Resonance",
+        juce::NormalisableRange<float>{1.0f, 10.0f, 0.1f}, 1.0f));
 
     return {parameters.begin(), parameters.end()};}

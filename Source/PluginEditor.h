@@ -12,6 +12,7 @@
 #include "PluginProcessor.h"
 #include "AdsrComponent.h"
 #include "OscComponent.h"
+#include "FilterComponent.h"
 
 //==============================================================================
 /**
@@ -30,6 +31,7 @@ private:
     CSC475SynthesizerAudioProcessor& audioProcessor;
     OscComponent osc;
     AdsrComponent adsr;
+    FilterComponent filter;
     
     
 

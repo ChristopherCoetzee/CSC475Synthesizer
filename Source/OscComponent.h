@@ -30,6 +30,8 @@ private:
     juce::Slider fmFrequencySlider;
     juce::Slider fmDepthSlider;
     
+    juce::Label waveTypeLabel {"Wave Type", "Wave Type"}; // finish this later
+    
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fmFrequencyAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fmDepthAttachment;
     juce::Label fmFrequencyLabel {"FM Frequency", "FM Frequency"};
