@@ -31,6 +31,7 @@ private:
     CSC475SynthesizerAudioProcessor& audioProcessor;
     OscComponent osc;
     AdsrComponent adsr;
+    AdsrComponent modAdsr;
     FilterComponent filter;
     
     

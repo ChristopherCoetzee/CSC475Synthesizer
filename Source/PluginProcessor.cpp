@@ -25,7 +25,13 @@ CSC475SynthesizerAudioProcessor::CSC475SynthesizerAudioProcessor()
 #endif
 {
     synthesizer.addSound(new SynthSound());
-    synthesizer.addVoice(new SynthVoice());
+
+    for (int i = 0; i < 16; ++i)
+    {
+        synthesizer.addVoice(new SynthVoice());
+    }
+
+    synthesizer.setNoteStealingEnabled(false);
 }
 
 CSC475SynthesizerAudioProcessor::~CSC475SynthesizerAudioProcessor()
@@ -95,22 +101,21 @@ void CSC475SynthesizerAudioProcessor::changeProgramName (int index, const juce::
 }
 
 //==============================================================================
-void CSC475SynthesizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void CSC475SynthesizerAudioProcessor::prepareToPlay(
+    double sampleRate, int samplesPerBlock)
 {
     synthesizer.setCurrentPlaybackSampleRate(sampleRate);
-    
-    // prepare all our voices
-    
-    for (int x = 0; x < synthesizer.getNumVoices(); x++)
-        
+
+    for (int i = 0; i < synthesizer.getNumVoices(); ++i)
     {
-        if (auto voice = dynamic_cast<SynthVoice*>(synthesizer.getVoice(x)))
+        if (auto voice = dynamic_cast<SynthVoice*>(synthesizer.getVoice(i)))
         {
-            voice->prepareToPlay(sampleRate, samplesPerBlock, getTotalNumInputChannels());
+            voice->prepareToPlay(
+                sampleRate,
+                samplesPerBlock,
+                getTotalNumOutputChannels());
         }
     }
-    
-    filter.prepareToPlay(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
 }
 
 void CSC475SynthesizerAudioProcessor::releaseResources()
@@ -167,27 +172,28 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             auto& fmDepth =  *apvts.getRawParameterValue("FMDEPTH");
             auto& fmFrequency =  *apvts.getRawParameterValue("FMFREQUENCY");
             
+            auto& modAttack = *apvts.getRawParameterValue("MODATTACK");
+            auto& modDecay = *apvts.getRawParameterValue("MODDECAY");
+            auto& modSustain = *apvts.getRawParameterValue("MODSUSTAIN" );
+            auto& modRelease = *apvts.getRawParameterValue("MODRELEASE");
+            
+            auto& filterType = *apvts.getRawParameterValue("FILTERTYPE");
+            auto& filterFrequency = *apvts.getRawParameterValue("FILTERFREQUENCY");
+            auto& filterResonance = *apvts.getRawParameterValue("FILTERRESONANCE");
+            
             
             
             voice->getOscillator().setWaveType(oscWave);
             voice->getOscillator().setFMParameters(fmDepth, fmFrequency);
-            voice->update(attack, decay, sustain, release);
+            voice->updateAdsr(attack, decay, sustain, release);
+            voice->updateFilter(filterType, filterFrequency,filterResonance);
+            voice->updateModAdsr(modAttack, modDecay,modSustain, modRelease);
         }
     }
     
     synthesizer.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples()); // renders the synths sounds
     
     // we filter here
-    
-    auto& filterType = *apvts.getRawParameterValue("FILTERTYPE");
-    auto& filterFrequency = *apvts.getRawParameterValue("FILTERFREQUENCY");
-    auto& filterResonance = *apvts.getRawParameterValue("FILTERRESONANCE");
-    
-    
-    filter.updateParameters(filterType, filterFrequency, filterResonance);
-    
-    filter.process(buffer);
-    
 };
 
 //==============================================================================
@@ -231,8 +237,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
         juce::ParameterID{"OSC", 1}, "Oscillator",
         juce::StringArray{"Sine", "Saw", "Square"}, 0));
     
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMFREQUENCY", "FM Frequency", juce::NormalisableRange<float> { 0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("FMDEPTH", "FM Depth", juce::NormalisableRange<float> { 0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"FMFREQUENCY", 1}, "FM Frequency",
+        juce::NormalisableRange<float>{0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
+
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"FMDEPTH", 1}, "FM Depth",
+        juce::NormalisableRange<float>{0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
       
     
 
@@ -252,9 +263,32 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
         juce::ParameterID{"RELEASE", 1}, "release",
         juce::NormalisableRange<float>{0.1f, 3.0f}, 0.4f));
     
-    parameters.push_back(std::make_unique<juce::AudioParameterChoice> ("OSC1WAVETYPE", "Oscillator 1 Wave Type",juce::StringArray { "Sin", "Saw", "Square" }, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"OSC1WAVETYPE", 1}, "Oscillator 1 Wave Type",
+        juce::StringArray{"Sin", "Saw", "Square"}, 0));
     
-    parameters.push_back(std::make_unique<juce::AudioParameterChoice> ("FILTERTYPE", "Filter Type",juce::StringArray { "Low-Pass", "Band-Pass", "High-Pass" }, 0));
+    // filter adsr
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"MODATTACK", 1}, "Mod Attack",
+        juce::NormalisableRange<float>{0.1f, 1.0f}, 0.1f));
+
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"MODDECAY", 1}, "Mod Decay",
+        juce::NormalisableRange<float>{0.1f, 1.0f}, 0.1f));
+
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"MODSUSTAIN", 1}, "Mod Sustain",
+        juce::NormalisableRange<float>{0.1f, 1.0f}, 1.0f));
+
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"MODRELEASE", 1}, "Mod Release",
+        juce::NormalisableRange<float>{0.1f, 3.0f}, 0.4f));
+    
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"FILTERTYPE", 1}, "Filter Type",
+        juce::StringArray{"Low-Pass", "Band-Pass", "High-Pass"}, 0));
     
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"FILTERFREQUENCY", 1}, "Filter Frequency",

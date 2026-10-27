@@ -9,7 +9,6 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "FilterData.h"
 
 //==============================================================================
 /**
@@ -58,7 +57,6 @@ public:
 private:
     //==============================================================================
     juce::Synthesiser synthesizer;
-    FilterData filter;
     juce::AudioProcessorValueTreeState::ParameterLayout makeParameters();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CSC475SynthesizerAudioProcessor)

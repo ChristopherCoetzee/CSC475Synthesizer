@@ -12,17 +12,19 @@
 #include "AdsrComponent.h"
 
 //==============================================================================
-AdsrComponent::AdsrComponent(juce::AudioProcessorValueTreeState& apvts)
+AdsrComponent::AdsrComponent(juce::String name,juce::AudioProcessorValueTreeState& apvts, juce::String attackId, juce::String decayId,juce::String sustainId,juce::String releaseId )
 {
     // In your constructor, you should add any child components, and
     // initialise any special settings that your component needs.
     
+    componentName = name;
+    
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     
-    attackAttachment = std::make_unique<SliderAttachment>(apvts, "ATTACK", attackSlider);
-    decayAttachment = std::make_unique<SliderAttachment>(apvts, "DECAY", decaySlider);
-    sustainAttachment = std::make_unique<SliderAttachment>(apvts, "SUSTAIN", sustainSlider);
-    releaseAttachment = std::make_unique<SliderAttachment>(apvts, "RELEASE", releaseSlider);
+    attackAttachment = std::make_unique<SliderAttachment>(apvts, attackId, attackSlider);
+    decayAttachment = std::make_unique<SliderAttachment>(apvts, decayId, decaySlider);
+    sustainAttachment = std::make_unique<SliderAttachment>(apvts, sustainId, sustainSlider);
+    releaseAttachment = std::make_unique<SliderAttachment>(apvts, releaseId, releaseSlider);
     
     attackSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
     attackSlider.setTextBoxStyle(juce::Slider::TextBoxBelow,true,60,30);

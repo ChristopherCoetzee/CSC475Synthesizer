@@ -14,7 +14,8 @@ CSC475SynthesizerAudioProcessorEditor::CSC475SynthesizerAudioProcessorEditor (CS
     : AudioProcessorEditor (&p)
     , audioProcessor (p)
     , osc (audioProcessor.apvts, "OSC1WAVETYPE", "FMFREQUENCY", "FMDEPTH")
-    , adsr(audioProcessor.apvts)
+    , adsr("Amp Envelope", audioProcessor.apvts, "ATTACK", "DECAY", "SUSTAIN", "RELEASE")
+    , modAdsr("Mod Envelope", audioProcessor.apvts, "MODATTACK", "MODDECAY","MODSUSTAIN", "MODRELEASE")
     , filter(audioProcessor.apvts,"FILTERTYPE", "FILTERFREQUENCY", "FILTERRESONANCE")
 {
     // Make sure that before the constructor has finished, you've set the
@@ -23,6 +24,7 @@ CSC475SynthesizerAudioProcessorEditor::CSC475SynthesizerAudioProcessorEditor (CS
     addAndMakeVisible(osc);
     addAndMakeVisible(adsr);
     addAndMakeVisible(filter);
+    addAndMakeVisible(modAdsr);
     
     
 };
@@ -40,7 +42,8 @@ void CSC475SynthesizerAudioProcessorEditor::paint (juce::Graphics& g)
 
 void CSC475SynthesizerAudioProcessorEditor::resized()
 {
-    adsr.setBounds(getWidth()/2, 0, getWidth()/2, getHeight());
+    adsr.setBounds(getWidth()/2, 0, getWidth()/2, getHeight()/2);
     osc.setBounds(10, 10, 180,200 );
     filter.setBounds(10, 250, 180, 200);
+    modAdsr.setBounds(filter.getRight(),300,  getWidth()/2, getHeight()/2 );
 }

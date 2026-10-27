@@ -33,7 +33,7 @@ void FilterData::reset()
 {
     filter.reset();
 }
-void FilterData::updateParameters(const int filterType, const float frequency, const float resonance)
+void FilterData::updateParameters(const int filterType, const float frequency, const float resonance, const float modulator)
 {
     switch(filterType)
     {
@@ -46,6 +46,10 @@ void FilterData::updateParameters(const int filterType, const float frequency, c
             filter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
     }
     
-    filter.setCutoffFrequency(frequency);
+    float modFreq = frequency;
+    modFreq = std::fmin(std::fmax(modFreq, 20.0f), 20000.0f);
+    
+    
+    filter.setCutoffFrequency(modFreq);
     filter.setResonance(resonance);
 }

@@ -6,6 +6,7 @@
 #include "SynthSound.h"
 #include "AdsrData.h"
 #include "OscData.h"
+#include "FilterData.h"
 
 class SynthVoice : public juce::SynthesiserVoice
 {
@@ -19,15 +20,20 @@ class SynthVoice : public juce::SynthesiserVoice
                              int startSample, int numSamples) override;
         void pitchWheelMoved(int newPitchWheelValue) override;
         
-        void update(const float attack, const float decay, const float sustain, const float release);
-    OscData& getOscillator() { return oscillator; };
+        void updateAdsr(const float attack, const float decay, const float sustain, const float release);
+        void updateFilter (const int filterType, const float cutoff, const float resonance);
+        void updateModAdsr (const float attack, const float decay, const float sustain, const float release);
+    
+        OscData& getOscillator() { return oscillator; };
+        
     
     private:
-        AdsrData adsr;
         juce::AudioBuffer<float> synthesizerBuffer;
     
-    OscData oscillator;
-        //juce::dsp::Oscillator<float> oscillator { [](float i) {return i / juce::MathConstants<float>::pi;}};
+        OscData oscillator;
+        AdsrData adsr;
+        FilterData filter;
+        AdsrData modAdsr;
         juce::dsp::Gain<float> gain;
         bool isPrepared { false };
         
