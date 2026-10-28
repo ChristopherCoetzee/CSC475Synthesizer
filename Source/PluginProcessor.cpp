@@ -16,9 +16,7 @@ CSC475SynthesizerAudioProcessor::CSC475SynthesizerAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        ), apvts(*this, nullptr, "Parameters", makeParameters())
@@ -138,6 +136,13 @@ bool CSC475SynthesizerAudioProcessor::isBusesLayoutSupported (const BusesLayout&
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
+    
+    const auto inputChannels = layouts.getMainInputChannelSet();
+    
+    if (inputChannels != juce::AudioChannelSet::disabled()
+     && inputChannels != juce::AudioChannelSet::mono()
+     && inputChannels != juce::AudioChannelSet::stereo())
+        return false;
 
     // This checks if the input layout matches the output layout
    #if ! JucePlugin_IsSynth
@@ -156,7 +161,44 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+    float measuredRms = 0.0f;
+    if (totalNumInputChannels > 0 && buffer.getNumSamples() > 0)
+    {
+        measuredRms = buffer.getRMSLevel(0, 0, buffer.getNumSamples());
+    }
+    
+    inputRms.store(measuredRms);
+    
+    // we are writing the input samples for our waveform display into a buffer so that they can be read
+    
+    if (totalNumInputChannels > 0 && buffer.getNumSamples() > 0)
+    {
+        int start1 = 0;
+        int size1 = 0;
+        int start2 = 0;
+        int size2 = 0;
+        
+        waveformFifo.prepareToWrite(buffer.getNumSamples(), start1, size1, start2, size2);
+        
+        const float* inputSamples = buffer.getReadPointer(0);
+        
+        if (size1 > 0 )
+        {
+            juce::FloatVectorOperations::copy (waveformSamples.data() + start1, inputSamples, size1);
+        }
+        
+        if (size2 > 0)
+        {
+            juce::FloatVectorOperations::copy (
+                waveformSamples.data() + start2,
+                inputSamples + size1,
+                size2);
+        }
+        
+        waveformFifo.finishedWrite(size1 + size2);
+    }
+    
+    for (auto i = 0; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
     
     for (int i = 0; i < synthesizer.getNumVoices(); ++i)
@@ -299,3 +341,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
         juce::NormalisableRange<float>{1.0f, 10.0f, 0.1f}, 1.0f));
 
     return {parameters.begin(), parameters.end()};}
+
+int CSC475SynthesizerAudioProcessor::readWaveformSamples(float* destination, int maxSamples)
+{
+    if (destination == nullptr || maxSamples <= 0)
+        return 0;
+    
+    int start1 = 0;
+    int size1 = 0;
+    int start2 = 0;
+    int size2 = 0;
+    
+    waveformFifo.prepareToRead(maxSamples,start1,size1, start2,size2);
+    
+    if (size1 > 0)
+    {
+        juce::FloatVectorOperations::copy(destination, waveformSamples.data() + start1, size1);
+    }
+    
+    if (size2 > 0)
+    {
+        juce::FloatVectorOperations::copy (
+            destination + size1,
+            waveformSamples.data() + start2,
+            size2);
+    }
+    
+    const int samplesRead = size1 + size2;
+    
+    waveformFifo.finishedRead(samplesRead);
+    
+    return samplesRead;
+}

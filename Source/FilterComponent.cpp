@@ -1,68 +1,160 @@
-/*
-  ==============================================================================
-
-    FilterComponent.cpp
-    Created: 25 Oct 2026 3:49:18pm
-    Author:  Christopher Luke Coetzee
-
-  ==============================================================================
-*/
-
-#include <JuceHeader.h>
 #include "FilterComponent.h"
 
-//==============================================================================
-FilterComponent::FilterComponent(juce::AudioProcessorValueTreeState& apvts, juce::String filterTypeSelectorId, juce::String filterFrequencyId, juce::String filterResonanceId)
+namespace
 {
-    juce::StringArray choices {"Low-Pass", "Band-Pass", "High-Pass"};
-    filterTypeSelector.addItemList(choices, 1);
-    addAndMakeVisible(filterTypeSelector);
-    
-    filterTypeSelectorAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, filterTypeSelectorId, filterTypeSelector);
-    
-    filterSelectorLabel.setColour(juce::Label::ColourIds::textColourId, juce::Colours::white);
-    filterSelectorLabel.setFont(juce::Font(juce::FontOptions{15.0f}));
-    filterSelectorLabel.setJustificationType(juce::Justification::left);
-    addAndMakeVisible(filterSelectorLabel);
-    
-    setSliderAndLabel(filterFrequencySlider, filterFrequencyLabel, apvts, filterFrequencyId, filterFrequencyAttachment);
-    setSliderAndLabel(filterResonanceSlider, filterResonanceLabel, apvts, filterResonanceId, filterResonanceAttachment);
+    constexpr int panelPadding = 12;
+    constexpr int titleHeight = 26;
+    constexpr int labelHeight = 22;
+    constexpr int comboHeight = 30;
 
+    constexpr int sectionGap = 12;
+    constexpr int controlGap = 10;
+
+    constexpr int textBoxWidth = 72;
+    constexpr int textBoxHeight = 26;
+    constexpr int borderWidth = 1;
+
+    constexpr float titleFontSize = 17.0f;
+    constexpr float labelFontSize = 15.0f;
 }
 
-FilterComponent::~FilterComponent()
+FilterComponent::FilterComponent (
+    juce::AudioProcessorValueTreeState& apvts,
+    juce::String selectorId,
+    juce::String frequencyId,
+    juce::String amountId)
 {
+    filterTypeSelector.addItemList (
+        juce::StringArray {
+            "Low-Pass",
+            "Band-Pass",
+            "High-Pass"
+        },
+        1);
+
+    filterTypeSelector.setName ("Filter Type");
+    addAndMakeVisible (filterTypeSelector);
+
+    filterTypeSelectorAttachment =
+        std::make_unique<
+            juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+            (apvts, selectorId, filterTypeSelector);
+
+    filterSelectorLabel.setColour (
+        juce::Label::textColourId,
+        juce::Colours::white);
+
+    filterSelectorLabel.setFont (
+        juce::Font (juce::FontOptions (labelFontSize)));
+
+    filterSelectorLabel.setJustificationType (
+        juce::Justification::centredLeft);
+
+    addAndMakeVisible (filterSelectorLabel);
+
+    setSliderAndLabel (
+        filterFrequencySlider,
+        filterFrequencyLabel,
+        apvts,
+        frequencyId,
+        filterFrequencyAttachment);
+
+    setSliderAndLabel (
+        filterResonanceSlider,
+        filterResonanceLabel,
+        apvts,
+        amountId,
+        filterResonanceAttachment);
 }
+
+FilterComponent::~FilterComponent() = default;
 
 void FilterComponent::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colours::black);
+
+    g.setColour (juce::Colours::darkgrey);
+    g.drawRect (getLocalBounds(), borderWidth);
+
+    g.setColour (juce::Colours::white);
+    g.setFont (
+        juce::Font (juce::FontOptions (titleFontSize)));
+
+    g.drawText (
+        "Filter",
+        getLocalBounds()
+            .reduced (panelPadding)
+            .removeFromTop (titleHeight),
+        juce::Justification::centredLeft);
 }
 
 void FilterComponent::resized()
 {
-    filterTypeSelector.setBounds(0, 0, 90, 30);
-    filterFrequencySlider.setBounds(0, 80, 100, 90);
-    filterFrequencyLabel.setBounds(filterFrequencySlider.getX(), filterFrequencySlider.getY() -20, filterFrequencySlider.getWidth(), 20);
-    filterResonanceSlider.setBounds(filterFrequencySlider.getRight(), 80, 100, 90);
-    filterResonanceLabel.setBounds(filterResonanceSlider.getX(), filterResonanceSlider.getY() - 20, filterResonanceSlider.getWidth(), 20);
-    
-    // need to add the labels for both selector comboboxes...
+    auto content = getLocalBounds().reduced (panelPadding);
 
+    content.removeFromTop (titleHeight);
+
+    filterSelectorLabel.setBounds (
+        content.removeFromTop (labelHeight));
+
+    filterTypeSelector.setBounds (
+        content.removeFromTop (comboHeight));
+
+    content.removeFromTop (sectionGap);
+
+    const auto controlWidth =
+        (content.getWidth() - controlGap) / 2;
+
+    auto frequencyArea = content.removeFromLeft (controlWidth);
+    content.removeFromLeft (controlGap);
+
+    filterFrequencyLabel.setBounds (
+        frequencyArea.removeFromTop (labelHeight));
+
+    filterFrequencySlider.setBounds (frequencyArea);
+
+    filterResonanceLabel.setBounds (
+        content.removeFromTop (labelHeight));
+
+    filterResonanceSlider.setBounds (content);
 }
-void FilterComponent:: setSliderAndLabel(juce::Slider& slider, juce::Label& label,juce::AudioProcessorValueTreeState& apvts,juce::String paramId,  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment )
+
+void FilterComponent::setSliderAndLabel (
+    juce::Slider& slider,
+    juce::Label& label,
+    juce::AudioProcessorValueTreeState& apvts,
+    juce::String paramId,
+    std::unique_ptr<
+        juce::AudioProcessorValueTreeState::SliderAttachment>&
+        attachment)
 {
-    slider.setSliderStyle (juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 60, 30);
-    
-    addAndMakeVisible(slider);
-    
-    attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, paramId, slider);
-    
-    label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::white);
-    label.setFont(juce::Font(juce::FontOptions(16.0f)));
-    label.setJustificationType(juce::Justification::centred);
-    
-    addAndMakeVisible(label);
-}
+    slider.setSliderStyle (
+        juce::Slider::RotaryHorizontalVerticalDrag);
 
+    slider.setTextBoxStyle (
+        juce::Slider::TextBoxBelow,
+        true,
+        textBoxWidth,
+        textBoxHeight);
+
+    slider.setName (label.getText());
+
+    addAndMakeVisible (slider);
+
+    attachment =
+        std::make_unique<
+            juce::AudioProcessorValueTreeState::SliderAttachment>
+            (apvts, paramId, slider);
+
+    label.setColour (
+        juce::Label::textColourId,
+        juce::Colours::white);
+
+    label.setFont (
+        juce::Font (juce::FontOptions (labelFontSize)));
+
+    label.setJustificationType (
+        juce::Justification::centred);
+
+    addAndMakeVisible (label);
+}

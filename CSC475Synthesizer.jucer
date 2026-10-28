@@ -2,7 +2,8 @@
 
 <JUCERPROJECT id="BAJIUN" name="CSC475Synthesizer" projectType="audioplug"
               useAppConfig="0" addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1"
-              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
+              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
+              pluginAUMainType="'aumf'">
   <MAINGROUP id="NDggeH" name="CSC475Synthesizer">
     <GROUP id="{BFAA74F2-8C82-A1E4-2E1B-2098437BBED9}" name="Source">
       <FILE id="VvhLyb" name="PluginProcessor.cpp" compile="1" resource="0"

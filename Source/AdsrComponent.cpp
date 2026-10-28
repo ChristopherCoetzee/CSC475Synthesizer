@@ -1,70 +1,158 @@
-/*
-  ==============================================================================
-
-    AdsrComponent.cpp
-    Created: 18 Oct 2026 8:09:10pm
-    Author:  Christopher Luke Coetzee
-
-  ==============================================================================
-*/
-
-#include <JuceHeader.h>
 #include "AdsrComponent.h"
+#include <array>
 
-//==============================================================================
-AdsrComponent::AdsrComponent(juce::String name,juce::AudioProcessorValueTreeState& apvts, juce::String attackId, juce::String decayId,juce::String sustainId,juce::String releaseId )
+namespace
 {
-    // In your constructor, you should add any child components, and
-    // initialise any special settings that your component needs.
-    
-    componentName = name;
-    
-    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-    
-    attackAttachment = std::make_unique<SliderAttachment>(apvts, attackId, attackSlider);
-    decayAttachment = std::make_unique<SliderAttachment>(apvts, decayId, decaySlider);
-    sustainAttachment = std::make_unique<SliderAttachment>(apvts, sustainId, sustainSlider);
-    releaseAttachment = std::make_unique<SliderAttachment>(apvts, releaseId, releaseSlider);
-    
-    attackSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    attackSlider.setTextBoxStyle(juce::Slider::TextBoxBelow,true,60,30);
-    addAndMakeVisible(attackSlider);
-    
-    decaySlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    decaySlider.setTextBoxStyle(juce::Slider::TextBoxBelow,true,60,30);
-    addAndMakeVisible(decaySlider);
-    
-    sustainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    sustainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow,true,60,30);
-    addAndMakeVisible(sustainSlider);
-    
-    releaseSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    releaseSlider.setTextBoxStyle(juce::Slider::TextBoxBelow,true,60,30);
-    addAndMakeVisible(releaseSlider);
+    constexpr int panelPadding = 12;
+    constexpr int titleHeight = 26;
+    constexpr int titleGap = 8;
+    constexpr int labelHeight = 22;
 
+    constexpr int sliderGap = 6;
+    constexpr int sliderCount = 4;
+
+    constexpr int textBoxWidth = 60;
+    constexpr int textBoxHeight = 26;
+    constexpr int borderWidth = 1;
+
+    constexpr float titleFontSize = 17.0f;
+    constexpr float labelFontSize = 14.0f;
 }
 
-AdsrComponent::~AdsrComponent()
+AdsrComponent::AdsrComponent (
+    juce::String name,
+    juce::AudioProcessorValueTreeState& apvts,
+    juce::String attackId,
+    juce::String decayId,
+    juce::String sustainId,
+    juce::String releaseId)
+    : componentName (name)
 {
+    const std::array<juce::Slider*, sliderCount> sliders
+    {{
+        &attackSlider,
+        &decaySlider,
+        &sustainSlider,
+        &releaseSlider
+    }};
+
+    const std::array<juce::Label*, sliderCount> labels
+    {{
+        &attackLabel,
+        &decayLabel,
+        &sustainLabel,
+        &releaseLabel
+    }};
+
+    for (int i = 0; i < sliderCount; ++i)
+    {
+        auto& slider = *sliders[i];
+        auto& label = *labels[i];
+
+        slider.setSliderStyle (
+            juce::Slider::LinearVertical);
+
+        slider.setTextBoxStyle (
+            juce::Slider::TextBoxBelow,
+            true,
+            textBoxWidth,
+            textBoxHeight);
+
+        slider.setName (
+            componentName + " " + label.getText());
+
+        addAndMakeVisible (slider);
+
+        label.setColour (
+            juce::Label::textColourId,
+            juce::Colours::white);
+
+        label.setFont (
+            juce::Font (juce::FontOptions (labelFontSize)));
+
+        label.setJustificationType (
+            juce::Justification::centred);
+
+        addAndMakeVisible (label);
+    }
+
+    using Attachment =
+        juce::AudioProcessorValueTreeState::SliderAttachment;
+
+    attackAttachment =
+        std::make_unique<Attachment> (
+            apvts, attackId, attackSlider);
+
+    decayAttachment =
+        std::make_unique<Attachment> (
+            apvts, decayId, decaySlider);
+
+    sustainAttachment =
+        std::make_unique<Attachment> (
+            apvts, sustainId, sustainSlider);
+
+    releaseAttachment =
+        std::make_unique<Attachment> (
+            apvts, releaseId, releaseSlider);
 }
+
+AdsrComponent::~AdsrComponent() = default;
 
 void AdsrComponent::paint (juce::Graphics& g)
 {
-    g.fillAll(juce::Colours::blueviolet);
+    g.fillAll (juce::Colours::black);
+
+    g.setColour (juce::Colours::darkgrey);
+    g.drawRect (getLocalBounds(), borderWidth);
+
+    g.setColour (juce::Colours::white);
+    g.setFont (
+        juce::Font (juce::FontOptions (titleFontSize)));
+
+    g.drawText (
+        componentName,
+        getLocalBounds()
+            .reduced (panelPadding)
+            .removeFromTop (titleHeight),
+        juce::Justification::centredLeft);
 }
 
 void AdsrComponent::resized()
 {
-    const auto bounds = getLocalBounds().reduced(10);
-    const auto padding = 10;
-    const auto sliderWidth = bounds.getWidth() / 4 - padding;
-    const auto sliderHeight =  bounds.getHeight();
-    const auto sliderStartX = 0;
-    const auto sliderStartY = 0;
-    
-    attackSlider.setBounds(sliderStartX, sliderStartY, sliderWidth, sliderHeight);
-    decaySlider.setBounds(attackSlider.getRight() + padding,  sliderStartY, sliderWidth, sliderHeight);
-    sustainSlider.setBounds(decaySlider.getRight() + padding,  sliderStartY, sliderWidth, sliderHeight);
-    releaseSlider.setBounds(sustainSlider.getRight() + padding,  sliderStartY, sliderWidth, sliderHeight);
+    auto content = getLocalBounds().reduced (panelPadding);
 
+    content.removeFromTop (titleHeight + titleGap);
+
+    const auto sliderWidth =
+        (content.getWidth() - (sliderCount - 1) * sliderGap)
+        / sliderCount;
+
+    const std::array<juce::Slider*, sliderCount> sliders
+    {{
+        &attackSlider,
+        &decaySlider,
+        &sustainSlider,
+        &releaseSlider
+    }};
+
+    const std::array<juce::Label*, sliderCount> labels
+    {{
+        &attackLabel,
+        &decayLabel,
+        &sustainLabel,
+        &releaseLabel
+    }};
+
+    for (int i = 0; i < sliderCount; ++i)
+    {
+        auto column = content.removeFromLeft (sliderWidth);
+
+        labels[i]->setBounds (
+            column.removeFromTop (labelHeight));
+
+        sliders[i]->setBounds (column);
+
+        if (i < sliderCount - 1)
+            content.removeFromLeft (sliderGap);
+    }
 }

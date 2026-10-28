@@ -9,6 +9,8 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <atomic>
+#include <array>
 
 //==============================================================================
 /**
@@ -54,9 +56,18 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
     
     juce::AudioProcessorValueTreeState apvts;
+    std::atomic<float> inputRms { 0.0f};
+    int readWaveformSamples (float* destination, int maxSamples);
 private:
     //==============================================================================
     juce::Synthesiser synthesizer;
+    
+    static constexpr int waveFormBufferSize = 32768;
+    
+    std::array<float, waveFormBufferSize> waveformSamples {};
+    
+    juce::AbstractFifo waveformFifo { waveFormBufferSize };
+    
     juce::AudioProcessorValueTreeState::ParameterLayout makeParameters();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CSC475SynthesizerAudioProcessor)
