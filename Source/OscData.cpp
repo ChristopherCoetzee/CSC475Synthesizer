@@ -38,28 +38,43 @@ void OscData::setWaveType(const int choice)
 
 void OscData::setWaveFrequency(const int midiNoteNumber)
 {
-    setFrequency(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber) + fmMod);
     
     mostRecentMidiNote = midiNoteNumber;
+    
+    const float baseFrequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
+    
+    setFrequency(baseFrequency, true);
 }
 
-void OscData::getNextAudioBlock (juce::dsp::AudioBlock<float>& block)
+void OscData::getNextAudioBlock(juce::dsp::AudioBlock<float>& block)
 {
-    for (int channel = 0; channel < block.getNumChannels(); ++channel)
+    const float baseFrequency = static_cast<float>(
+        juce::MidiMessage::getMidiNoteInHertz(
+            static_cast<int>(mostRecentMidiNote)));
+
+    const int numSamples = static_cast<int>(block.getNumSamples());
+    const int numChannels = static_cast<int>(block.getNumChannels());
+
+    for (int sample = 0; sample < numSamples; ++sample)
     {
-        for (int s = 0; s < block.getNumSamples(); ++s)
+        fmMod = fmOscillator.processSample(0.0f) * fmDepth;
+
+        const float currentFrequency =
+            std::abs(baseFrequency + fmMod);
+
+        setFrequency(currentFrequency, true);
+
+        const float outputSample = processSample(0.0f);
+
+        for (int channel = 0; channel < numChannels; ++channel)
         {
-            fmMod = fmOscillator.processSample(block.getSample(channel, s)) * fmDepth;
+            block.setSample(channel, sample, outputSample);
         }
     }
-    
-    process(juce::dsp::ProcessContextReplacing<float>(block));
 }
 
 void OscData::setFMParameters (const float depth, const float freq)
 {
-    fmOscillator.setFrequency(freq);
     fmDepth = depth;
-    auto currentFrequency = juce::MidiMessage::getMidiNoteInHertz(mostRecentMidiNote) + fmMod;
-    setFrequency(currentFrequency >= 0 ? currentFrequency : currentFrequency * -1.0f);
+    fmOscillator.setFrequency(freq);
 }

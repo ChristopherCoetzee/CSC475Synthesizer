@@ -1,4 +1,5 @@
 #include "OscComponent.h"
+#include <cmath>
 
 namespace
 {
@@ -16,6 +17,10 @@ namespace
 
     constexpr float titleFontSize = 17.0f;
     constexpr float labelFontSize = 15.0f;
+
+    constexpr float knobDrawingPadding = 10.0f;
+    constexpr float markerOffset = 4.0f;
+    constexpr float markerRadius = 3.0f;
 }
 
 OscComponent::OscComponent (
@@ -153,4 +158,67 @@ void OscComponent::setSliderAndLabel (
         juce::Justification::centred);
 
     addAndMakeVisible (label);
+}
+
+// these two help us to paint over the exisiting fmDepth to visualize how our voice is changing things
+
+void OscComponent::setEffectiveFmDepth(float depth)
+{
+    effectiveFmDepth = depth;
+    hasEffectiveFmDepth = true;
+
+    repaint(fmDepthSlider.getBounds());
+}
+
+void OscComponent::paintOverChildren(juce::Graphics& g)
+{
+    if (!hasEffectiveFmDepth)
+        return;
+
+    const auto layout =
+        fmDepthSlider.getLookAndFeel().getSliderLayout(fmDepthSlider);
+
+    const auto knobArea = layout.sliderBounds.toFloat();
+
+    const float centreX =
+        static_cast<float>(fmDepthSlider.getX())
+        + knobArea.getCentreX();
+
+    const float centreY =
+        static_cast<float>(fmDepthSlider.getY())
+        + knobArea.getCentreY();
+
+    const float radius =
+        juce::jmin(knobArea.getWidth(), knobArea.getHeight()) * 0.5f
+        - knobDrawingPadding
+        + markerOffset;
+
+    if (radius <= markerRadius)
+        return;
+
+    const double limitedDepth = juce::jlimit(
+        fmDepthSlider.getMinimum(),
+        fmDepthSlider.getMaximum(),
+        static_cast<double>(effectiveFmDepth));
+
+    const float position = static_cast<float>(
+        fmDepthSlider.valueToProportionOfLength(limitedDepth));
+
+    const auto rotary = fmDepthSlider.getRotaryParameters();
+
+    const float angle =
+        rotary.startAngleRadians
+        + position
+            * (rotary.endAngleRadians - rotary.startAngleRadians);
+
+    const float markerX = centreX + std::sin(angle) * radius;
+    const float markerY = centreY - std::cos(angle) * radius;
+
+    g.setColour(juce::Colour(0xffc084fc));
+
+    g.fillEllipse(
+        markerX - markerRadius,
+        markerY - markerRadius,
+        markerRadius * 2.0f,
+        markerRadius * 2.0f);
 }

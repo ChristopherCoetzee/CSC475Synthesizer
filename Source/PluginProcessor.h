@@ -58,9 +58,12 @@ public:
     juce::AudioProcessorValueTreeState apvts;
     std::atomic<float> inputRms { 0.0f};
     int readWaveformSamples (float* destination, int maxSamples);
+    std::atomic<float> effectiveFmDepthForDisplay { 0.0f };
 private:
     //==============================================================================
     juce::Synthesiser synthesizer;
+    
+    float smoothedVoiceLevel { 0.0f };
     
     static constexpr int waveFormBufferSize = 32768;
     

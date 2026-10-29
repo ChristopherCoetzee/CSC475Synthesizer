@@ -10,6 +10,7 @@
 #include "PluginEditor.h"
 #include "SynthVoice.h"
 #include "SynthSound.h"
+#include <cmath>
 
 //==============================================================================
 CSC475SynthesizerAudioProcessor::CSC475SynthesizerAudioProcessor()
@@ -102,6 +103,7 @@ void CSC475SynthesizerAudioProcessor::changeProgramName (int index, const juce::
 void CSC475SynthesizerAudioProcessor::prepareToPlay(
     double sampleRate, int samplesPerBlock)
 {
+    smoothedVoiceLevel = 0.0f;
     synthesizer.setCurrentPlaybackSampleRate(sampleRate);
 
     for (int i = 0; i < synthesizer.getNumVoices(); ++i)
@@ -169,6 +171,23 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     
     inputRms.store(measuredRms);
     
+    // we smooth the voice before we use it to map to fmDepth
+    
+    constexpr float noiseFloorRms = 0.005f;
+    constexpr float fullVoiceRms = 0.1f;
+    
+    constexpr double smoothingSeconds = 0.05;
+    
+    const float targetVoiceLevel = juce::jlimit(0.0f,1.0f,(measuredRms - noiseFloorRms)/ (fullVoiceRms-noiseFloorRms));
+    
+    const double blockSeconds = static_cast<double>(buffer.getNumSamples()/ getSampleRate());
+    
+    const float smoothingAmount = static_cast<float>(
+        1.0 - std::exp(-blockSeconds / smoothingSeconds));
+    
+    smoothedVoiceLevel +=
+        smoothingAmount * (targetVoiceLevel - smoothedVoiceLevel);
+    
     // we are writing the input samples for our waveform display into a buffer so that they can be read
     
     if (totalNumInputChannels > 0 && buffer.getNumSamples() > 0)
@@ -226,7 +245,15 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             
             
             voice->getOscillator().setWaveType(oscWave);
-            voice->getOscillator().setFMParameters(fmDepth, fmFrequency);
+            
+            constexpr float voiceAmount = 200.0f;
+            const float effectiveFmDepth = juce::jlimit(0.0f, 1000.0f, fmDepth.load() + voiceAmount * smoothedVoiceLevel);
+            
+            // to reflect change in our gui as we sing.
+            effectiveFmDepthForDisplay.store(effectiveFmDepth);
+            
+            voice-> getOscillator().setFMParameters(effectiveFmDepth, fmFrequency.load());
+            
             voice->updateAdsr(attack, decay, sustain, release);
             voice->updateFilter(filterType, filterFrequency,filterResonance);
             voice->updateModAdsr(modAttack, modDecay,modSustain, modRelease);

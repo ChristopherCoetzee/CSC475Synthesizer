@@ -15,6 +15,8 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void setEffectiveFmDepth(float depth);
+    void paintOverChildren(juce::Graphics& g) override;
 
 private:
     juce::ComboBox oscWaveSelector;
@@ -47,6 +49,9 @@ private:
         std::unique_ptr<
             juce::AudioProcessorValueTreeState::SliderAttachment>&
             attachment);
+    
+    float effectiveFmDepth { 0.0f };
+    bool hasEffectiveFmDepth { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OscComponent)
 };

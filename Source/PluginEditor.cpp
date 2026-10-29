@@ -295,6 +295,9 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
 
 void CSC475SynthesizerAudioProcessorEditor::timerCallback()
 {
+    osc.setEffectiveFmDepth(
+        audioProcessor.effectiveFmDepthForDisplay.load());
+    
     for (int read = 0; read < Layout::waveformMaxReadsPerTick; ++read)
     {
         const int samplesRead = audioProcessor.readWaveformSamples(waveformReadBuffer.data(),waveformReadBufferSize);
