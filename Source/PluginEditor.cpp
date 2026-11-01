@@ -34,6 +34,8 @@ namespace
         constexpr int waveformMaxReadsPerTick = 8;
         constexpr int rmsRowHeight = 22;
     
+        constexpr int centroidRowHeight = 22;
+    
     
     }
 
@@ -231,6 +233,21 @@ void CSC475SynthesizerAudioProcessorEditor::paint (
             + juce::String (currentInputRms, Layout::rmsDecimalPlaces),
         rmsArea.removeFromTop (Layout::rmsRowHeight),
         juce::Justification::centredLeft);
+    
+    const float currentCentroidHz =
+        audioProcessor.inputCentroidHz.load();
+
+    const juce::String centroidText =
+        currentCentroidHz > 0.0f
+            ? juce::String("Voice centroid: ")
+                + juce::String(currentCentroidHz, 0)
+                + " Hz"
+            : juce::String("Voice centroid: —");
+
+    g.drawText(
+        centroidText,
+        rmsArea.removeFromTop(Layout::centroidRowHeight),
+        juce::Justification::centredLeft);
     drawReservedPanel (
         g,
         inputControlsBounds,
@@ -270,7 +287,11 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
     
     auto waveformArea = voiceVisualBounds.reduced (Layout::panelPadding);
     
-    waveformArea.removeFromTop(Layout::titleHeight + Layout::rmsRowHeight + Layout::gap);
+    waveformArea.removeFromTop(
+        Layout::titleHeight
+        + Layout::rmsRowHeight
+        + Layout::centroidRowHeight
+        + Layout::gap);
     
     voiceWaveform.setBounds(waveformArea);
 

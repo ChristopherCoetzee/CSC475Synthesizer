@@ -59,11 +59,40 @@ public:
     std::atomic<float> inputRms { 0.0f};
     int readWaveformSamples (float* destination, int maxSamples);
     std::atomic<float> effectiveFmDepthForDisplay { 0.0f };
+    
+    std::atomic<float> inputCentroidHz { 0.0f };
+    
 private:
     //==============================================================================
     juce::Synthesiser synthesizer;
     
     float smoothedVoiceLevel { 0.0f };
+    float smoothedVoiceBrightness { 0.0f };
+    
+    // where we do microphone frequency analysis
+    
+    static constexpr int fftOrder = 11;
+    static constexpr int fftSize = 1 << fftOrder;
+    
+    juce::dsp::FFT voiceFft { fftOrder };
+    
+    juce::dsp::WindowingFunction<float> voiceWindow {
+        fftSize,
+        juce::dsp::WindowingFunction<float>::hann
+    };
+    
+    // we collect mic samples
+    
+    std::array<float, fftSize> voiceAnalysisSamples {};
+    
+    // another space for the fft
+    
+    std::array<float, fftSize * 2> voiceFftData {};
+    
+    int voiceAnalysisWritePosition { 0 };
+
+    float voiceCentroidHz { 0.0f };
+    
     
     static constexpr int waveFormBufferSize = 32768;
     

@@ -35,15 +35,26 @@ void FilterData::reset()
 }
 void FilterData::updateParameters(const int filterType, const float frequency, const float resonance, const float modulator)
 {
-    switch(filterType)
+    switch (filterType)
     {
         case 0:
-            filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+            filter.setType(
+                juce::dsp::StateVariableTPTFilterType::lowpass);
             break;
+
         case 1:
-            filter.setType(juce::dsp::StateVariableTPTFilterType::bandpass);
+            filter.setType(
+                juce::dsp::StateVariableTPTFilterType::bandpass);
+            break;
+
         case 2:
-            filter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+            filter.setType(
+                juce::dsp::StateVariableTPTFilterType::highpass);
+            break;
+
+        default:
+            jassertfalse;
+            break;
     }
     
     float modFreq = frequency;
