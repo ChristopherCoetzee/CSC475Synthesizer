@@ -61,6 +61,8 @@ public:
     std::atomic<float> effectiveFmDepthForDisplay { 0.0f };
     
     std::atomic<float> inputCentroidHz { 0.0f };
+    std::atomic<float> inputSpectralFlatness { 0.0f };
+    std::atomic<float> effectiveResonanceForDisplay { 1.0f };
     
 private:
     //==============================================================================
@@ -92,6 +94,9 @@ private:
     int voiceAnalysisWritePosition { 0 };
 
     float voiceCentroidHz { 0.0f };
+    float voiceSpectralFlatness { 0.0f };
+    float smoothedResonanceBoost { 0.0f };
+    bool hasValidSpectralFlatness { false };
     
     
     static constexpr int waveFormBufferSize = 32768;

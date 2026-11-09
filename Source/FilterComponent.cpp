@@ -1,4 +1,5 @@
 #include "FilterComponent.h"
+#include <cmath>
 
 namespace
 {
@@ -16,6 +17,10 @@ namespace
 
     constexpr float titleFontSize = 17.0f;
     constexpr float labelFontSize = 15.0f;
+
+    constexpr float knobDrawingPadding = 10.0f;
+    constexpr float markerOffset = 4.0f;
+    constexpr float markerRadius = 3.0f;
 }
 
 FilterComponent::FilterComponent (
@@ -157,4 +162,78 @@ void FilterComponent::setSliderAndLabel (
         juce::Justification::centred);
 
     addAndMakeVisible (label);
+}
+
+void FilterComponent::setEffectiveResonance(float resonance)
+{
+    effectiveResonance = resonance;
+    hasEffectiveResonance = true;
+
+    repaint(filterResonanceSlider.getBounds());
+}
+
+void FilterComponent::paintOverChildren(juce::Graphics& g)
+{
+    if (!hasEffectiveResonance)
+        return;
+
+    // Find the area occupied by the resonance knob.
+    const auto layout =
+        filterResonanceSlider.getLookAndFeel()
+            .getSliderLayout(filterResonanceSlider);
+
+    const auto knobArea = layout.sliderBounds.toFloat();
+
+    const float centreX =
+        static_cast<float>(filterResonanceSlider.getX())
+        + knobArea.getCentreX();
+
+    const float centreY =
+        static_cast<float>(filterResonanceSlider.getY())
+        + knobArea.getCentreY();
+
+
+    const float radius =
+        juce::jmin(knobArea.getWidth(), knobArea.getHeight()) * 0.5f
+        - knobDrawingPadding
+        + markerOffset;
+
+    if (radius <= markerRadius)
+        return;
+
+    // Make sure the displayed resonance stays within
+    // the knob's allowed range.
+    const double limitedResonance = juce::jlimit(
+        filterResonanceSlider.getMinimum(),
+        filterResonanceSlider.getMaximum(),
+        static_cast<double>(effectiveResonance));
+
+    // Convert resonance into a position around the knob.
+    const float position = static_cast<float>(
+        filterResonanceSlider.valueToProportionOfLength(
+            limitedResonance));
+
+    const auto rotary =
+        filterResonanceSlider.getRotaryParameters();
+
+    const float angle =
+        rotary.startAngleRadians
+        + position * (rotary.endAngleRadians
+                      - rotary.startAngleRadians);
+
+    // Calculate the purple ball's coordinates.
+    const float markerX =
+        centreX + std::sin(angle) * radius;
+
+    const float markerY =
+        centreY - std::cos(angle) * radius;
+
+    // Draw the purple ball.
+    g.setColour(juce::Colour(0xffc084fc));
+
+    g.fillEllipse(
+        markerX - markerRadius,
+        markerY - markerRadius,
+        markerRadius * 2.0f,
+        markerRadius * 2.0f);
 }

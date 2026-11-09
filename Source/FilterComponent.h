@@ -15,6 +15,9 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    
+    void setEffectiveResonance(float resonance);
+    void paintOverChildren(juce::Graphics& g) override;
 
 private:
     juce::ComboBox filterTypeSelector;
@@ -55,6 +58,9 @@ private:
         std::unique_ptr<
             juce::AudioProcessorValueTreeState::SliderAttachment>&
             attachment);
+    
+    float effectiveResonance { 1.0f };
+    bool hasEffectiveResonance { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterComponent)
 };
