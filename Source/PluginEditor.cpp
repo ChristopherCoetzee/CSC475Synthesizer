@@ -8,17 +8,20 @@ namespace
         constexpr int editorWidth = 1100;
         constexpr int editorHeight = 800;
 
-        constexpr int margin = 16;
-        constexpr int gap = 12;
+    
+        constexpr int bannerHeight = 410;
+
+        constexpr int margin = 8;
+        constexpr int gap = 6;
 
         constexpr int controlsWidth = 650;
-        constexpr int topRowHeight = 260;
+        constexpr int topRowHeight = 145;
 
-        constexpr int inputControlsHeight = 64;
-        constexpr int midiHeight = 120;
+        constexpr int inputControlsHeight = 30;
+        constexpr int midiHeight = 64;
 
-        constexpr int panelPadding = 12;
-        constexpr int titleHeight = 24;
+        constexpr int panelPadding = 6;
+        constexpr int titleHeight = 17;
         constexpr int borderWidth = 1;
 
         constexpr float titleFontSize = 17.0f;
@@ -32,10 +35,10 @@ namespace
         constexpr int waveFormHistorySize = 512;
         constexpr int waveformSamplesPerPoint = 128;
         constexpr int waveformMaxReadsPerTick = 8;
-        constexpr int rmsRowHeight = 22;
+        constexpr int rmsRowHeight = 14;
     
-        constexpr int centroidRowHeight = 22;
-        constexpr int flatnessRowHeight = 22;
+        constexpr int centroidRowHeight = 14;
+        constexpr int flatnessRowHeight = 14;
     
     
     }
@@ -174,11 +177,13 @@ CSC475SynthesizerAudioProcessorEditor (
         juce::PopupMenu::highlightedTextColourId, foreground);
 
     setLookAndFeel (&blackLookAndFeel);
+   
 
-    addAndMakeVisible (osc);
-    addAndMakeVisible (filter);
-    addAndMakeVisible (adsr);
-    addAndMakeVisible (modAdsr);
+    addAndMakeVisible(osc);
+    addAndMakeVisible(filter);
+    addAndMakeVisible(adsr);
+    addAndMakeVisible(modAdsr);
+    addAndMakeVisible(voiceWaveform);
     
     voiceWaveform.setSamplesPerBlock(Layout::waveformSamplesPerPoint);
     voiceWaveform.setBufferSize(Layout::waveFormHistorySize);
@@ -187,8 +192,11 @@ CSC475SynthesizerAudioProcessorEditor (
         juce::Colour (0xffc084fc));
     
     voiceWaveform.setRepaintRate(Layout::meterRefreshHz);
-    addAndMakeVisible(voiceWaveform);
 
+    catImage = juce::ImageCache::getFromMemory(
+        BinaryData::cats_png,
+        BinaryData::cats_pngSize);
+    
     setSize (Layout::editorWidth, Layout::editorHeight);
     
     startTimerHz(Layout::meterRefreshHz);
@@ -200,11 +208,34 @@ CSC475SynthesizerAudioProcessorEditor::
     stopTimer();
     setLookAndFeel (nullptr);
 }
-
-void CSC475SynthesizerAudioProcessorEditor::paint (
+void CSC475SynthesizerAudioProcessorEditor::paint(
     juce::Graphics& g)
 {
-    g.fillAll (juce::Colours::black);
+    
+    // Purple background behind the illustration
+    g.setColour(juce::Colour(0xff24223d));
+    g.fillRoundedRectangle(
+        catBannerBounds.toFloat(), 14.0f);
+
+    // Draw the sleeping-cat illustration
+    if (catImage.isValid())
+    {
+        g.saveState();
+        g.reduceClipRegion(catBannerBounds);
+
+        g.drawImage(
+            catImage,
+            catBannerBounds.toFloat(),
+                    juce::RectanglePlacement::centred);
+
+        g.restoreState();
+    }
+
+    // Lavender outline around the artwork
+    g.setColour(juce::Colour(0xff9c8abf));
+    g.drawRoundedRectangle(
+        catBannerBounds.toFloat(), 14.0f, 1.5f);
+
 
     drawReservedPanel (
         g,
@@ -269,59 +300,85 @@ void CSC475SynthesizerAudioProcessorEditor::paint (
         "Reserved for an on-screen MIDI keyboard and controls.");
 }
 
+
 void CSC475SynthesizerAudioProcessorEditor::resized()
 {
-    auto content = getLocalBounds().reduced (Layout::margin);
+    auto content = getLocalBounds().reduced(Layout::margin);
 
-    // Full-width reserved areas at the bottom.
-    midiBounds = content.removeFromBottom (Layout::midiHeight);
-    content.removeFromBottom (Layout::gap);
+    // 1. Large cat illustration at the top
+    catBannerBounds =
+        content.removeFromTop(Layout::bannerHeight);
 
+    content.removeFromTop(Layout::gap);
+
+    // 2. MIDI keyboard at the very bottom
+    midiBounds =
+        content.removeFromBottom(Layout::midiHeight);
+
+    content.removeFromBottom(Layout::gap);
+
+    // 3. Sound input controls above the keyboard
     inputControlsBounds =
-        content.removeFromBottom (Layout::inputControlsHeight);
+        content.removeFromBottom(Layout::inputControlsHeight);
 
-    content.removeFromBottom (Layout::gap);
+    content.removeFromBottom(Layout::gap);
 
-    // Left: synth controls. Right: future visual displays.
-    auto controls = content.removeFromLeft (Layout::controlsWidth);
-    content.removeFromLeft (Layout::gap);
+    // 4. Synth controls on the left
+    auto controls =
+        content.removeFromLeft(Layout::controlsWidth);
 
-    const auto visualHeight =
+    content.removeFromLeft(Layout::gap);
+
+    // 5. Visualizations on the right
+    const int visualHeight =
         (content.getHeight() - Layout::gap) / 2;
 
-    audioVisualBounds = content.removeFromTop (visualHeight);
-    content.removeFromTop (Layout::gap);
+    audioVisualBounds =
+        content.removeFromTop(visualHeight);
+
+    content.removeFromTop(Layout::gap);
+
     voiceVisualBounds = content;
-    
-    auto waveformArea = voiceVisualBounds.reduced (Layout::panelPadding);
-    
+
+    // Position the voice waveform
+    auto waveformArea =
+        voiceVisualBounds.reduced(Layout::panelPadding);
+
     waveformArea.removeFromTop(
         Layout::titleHeight
         + Layout::rmsRowHeight
         + Layout::centroidRowHeight
         + Layout::flatnessRowHeight
         + Layout::gap);
-    
+
     voiceWaveform.setBounds(waveformArea);
 
-    // Top control row: FM modulation and filter.
-    auto topRow = controls.removeFromTop (Layout::topRowHeight);
-    controls.removeFromTop (Layout::gap);
+    // 6. Oscillator and filter on the first row
+    auto topRow =
+        controls.removeFromTop(Layout::topRowHeight);
 
-    const auto columnWidth =
+    controls.removeFromTop(Layout::gap);
+
+    const int columnWidth =
         (controls.getWidth() - Layout::gap) / 2;
 
-    osc.setBounds (topRow.removeFromLeft (columnWidth));
-    topRow.removeFromLeft (Layout::gap);
-    filter.setBounds (topRow);
+    osc.setBounds(topRow.removeFromLeft(columnWidth));
 
-    // Lower control row: amplitude ADSR and modulation ADSR.
-    adsr.setBounds (controls.removeFromLeft (columnWidth));
-    controls.removeFromLeft (Layout::gap);
-    modAdsr.setBounds (controls);
+    topRow.removeFromLeft(Layout::gap);
+
+    filter.setBounds(topRow);
+
+    // 7. ADSR controls on the second row
+    adsr.setBounds(
+        controls.removeFromLeft(columnWidth));
+
+    controls.removeFromLeft(Layout::gap);
+
+    modAdsr.setBounds(controls);
 
     repaint();
 }
+
 
 void CSC475SynthesizerAudioProcessorEditor::timerCallback()
 {

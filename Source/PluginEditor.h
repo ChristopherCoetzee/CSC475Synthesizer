@@ -7,6 +7,8 @@
 #include "FilterComponent.h"
 #include <array>
 
+
+
 class CSC475SynthesizerAudioProcessorEditor
     : public juce::AudioProcessorEditor, private juce::Timer
 {
@@ -18,8 +20,12 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    
 
 private:
+   
+
+
     CSC475SynthesizerAudioProcessor& audioProcessor;
 
     // Declared before the controls so it outlives them.
@@ -36,6 +42,10 @@ private:
     
     std::array<float, waveformReadBufferSize> waveformReadBuffer {};
 
+    // Top illustration area
+    juce::Rectangle<int> catBannerBounds;
+    juce::Image catImage;
+    
     // Reserved UI areas only.
     juce::Rectangle<int> audioVisualBounds;
     juce::Rectangle<int> voiceVisualBounds;

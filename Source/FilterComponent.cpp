@@ -3,20 +3,20 @@
 
 namespace
 {
-    constexpr int panelPadding = 12;
-    constexpr int titleHeight = 26;
-    constexpr int labelHeight = 22;
-    constexpr int comboHeight = 30;
+    constexpr int panelPadding = 6;
+    constexpr int titleHeight = 17;
+    constexpr int labelHeight = 13;
+    constexpr int comboHeight = 20;
 
-    constexpr int sectionGap = 12;
-    constexpr int controlGap = 10;
+    constexpr int sectionGap = 3;
+    constexpr int controlGap = 6;
 
     constexpr int textBoxWidth = 72;
-    constexpr int textBoxHeight = 26;
+    constexpr int textBoxHeight = 16;
     constexpr int borderWidth = 1;
 
-    constexpr float titleFontSize = 17.0f;
-    constexpr float labelFontSize = 15.0f;
+    constexpr float titleFontSize = 12.0f;
+    constexpr float labelFontSize = 11.0f;
 
     constexpr float knobDrawingPadding = 10.0f;
     constexpr float markerOffset = 4.0f;
@@ -44,6 +44,47 @@ FilterComponent::FilterComponent (
         std::make_unique<
             juce::AudioProcessorValueTreeState::ComboBoxAttachment>
             (apvts, selectorId, filterTypeSelector);
+    
+    // Hide the old dropdown, but keep it connected
+    filterTypeSelector.setVisible(false);
+
+    // Set the button labels
+    lowPassButton.setButtonText("Low-Pass");
+    bandPassButton.setButtonText("Band-Pass");
+    highPassButton.setButtonText("High-Pass");
+
+    // Make the buttons visible
+    addAndMakeVisible(lowPassButton);
+    addAndMakeVisible(bandPassButton);
+    addAndMakeVisible(highPassButton);
+
+    // Clicking a button selects the filter type
+    lowPassButton.onClick = [this]()
+    {
+        filterTypeSelector.setSelectedId(
+            1, juce::sendNotificationSync);
+    };
+
+    bandPassButton.onClick = [this]()
+    {
+        filterTypeSelector.setSelectedId(
+            2, juce::sendNotificationSync);
+    };
+
+    highPassButton.onClick = [this]()
+    {
+        filterTypeSelector.setSelectedId(
+            3, juce::sendNotificationSync);
+    };
+
+    // Update the highlighted selection
+    filterTypeSelector.onChange = [this]()
+    {
+        updateFilterButtons();
+    };
+
+    updateFilterButtons();
+
 
     filterSelectorLabel.setColour (
         juce::Label::textColourId,
@@ -71,6 +112,19 @@ FilterComponent::FilterComponent (
         amountId,
         filterResonanceAttachment);
 }
+void FilterComponent::updateFilterButtons()
+{
+    const int selected = filterTypeSelector.getSelectedId();
+
+    lowPassButton.setToggleState(
+        selected == 1, juce::dontSendNotification);
+
+    bandPassButton.setToggleState(
+        selected == 2, juce::dontSendNotification);
+
+    highPassButton.setToggleState(
+        selected == 3, juce::dontSendNotification);
+}
 
 FilterComponent::~FilterComponent() = default;
 
@@ -93,36 +147,54 @@ void FilterComponent::paint (juce::Graphics& g)
         juce::Justification::centredLeft);
 }
 
+
 void FilterComponent::resized()
 {
-    auto content = getLocalBounds().reduced (panelPadding);
+    auto content = getLocalBounds().reduced(panelPadding);
 
-    content.removeFromTop (titleHeight);
+    // Space for the Filter title
+    content.removeFromTop(titleHeight);
 
-    filterSelectorLabel.setBounds (
-        content.removeFromTop (labelHeight));
+    // Hide old dropdown and label
+    filterSelectorLabel.setVisible(false);
+    filterTypeSelector.setVisible(false);
+    filterTypeSelector.setBounds(0, 0, 0, 0);
 
-    filterTypeSelector.setBounds (
-        content.removeFromTop (comboHeight));
+    // Left column: filter selection buttons
+    auto filterArea = content.removeFromLeft(108);
 
-    content.removeFromTop (sectionGap);
+    content.removeFromLeft(controlGap);
 
-    const auto controlWidth =
+    const int rowHeight = filterArea.getHeight() / 3;
+
+    lowPassButton.setBounds(
+        filterArea.removeFromTop(rowHeight));
+
+    bandPassButton.setBounds(
+        filterArea.removeFromTop(rowHeight));
+
+    highPassButton.setBounds(filterArea);
+
+    // Right columns: Filter knobs
+    const int knobWidth =
         (content.getWidth() - controlGap) / 2;
 
-    auto frequencyArea = content.removeFromLeft (controlWidth);
-    content.removeFromLeft (controlGap);
+    auto frequencyArea =
+        content.removeFromLeft(knobWidth);
 
-    filterFrequencyLabel.setBounds (
-        frequencyArea.removeFromTop (labelHeight));
+    content.removeFromLeft(controlGap);
 
-    filterFrequencySlider.setBounds (frequencyArea);
+    filterFrequencyLabel.setBounds(
+        frequencyArea.removeFromTop(labelHeight));
 
-    filterResonanceLabel.setBounds (
-        content.removeFromTop (labelHeight));
+    filterFrequencySlider.setBounds(frequencyArea);
 
-    filterResonanceSlider.setBounds (content);
+    filterResonanceLabel.setBounds(
+        content.removeFromTop(labelHeight));
+
+    filterResonanceSlider.setBounds(content);
 }
+
 
 void FilterComponent::setSliderAndLabel (
     juce::Slider& slider,

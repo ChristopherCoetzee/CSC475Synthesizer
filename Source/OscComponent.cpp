@@ -3,20 +3,20 @@
 
 namespace
 {
-    constexpr int panelPadding = 12;
-    constexpr int titleHeight = 26;
-    constexpr int labelHeight = 22;
-    constexpr int comboHeight = 30;
+    constexpr int panelPadding = 6;
+    constexpr int titleHeight = 17;
+    constexpr int labelHeight = 13;
+    constexpr int comboHeight = 20;
 
-    constexpr int sectionGap = 12;
-    constexpr int controlGap = 10;
+    constexpr int sectionGap = 3;
+    constexpr int controlGap = 6;
 
     constexpr int textBoxWidth = 72;
-    constexpr int textBoxHeight = 26;
+    constexpr int textBoxHeight = 16;
     constexpr int borderWidth = 1;
 
-    constexpr float titleFontSize = 17.0f;
-    constexpr float labelFontSize = 15.0f;
+    constexpr float titleFontSize = 12.0f;
+    constexpr float labelFontSize = 11.0f;
 
     constexpr float knobDrawingPadding = 10.0f;
     constexpr float markerOffset = 4.0f;
@@ -29,7 +29,7 @@ OscComponent::OscComponent (
     juce::String frequencyId,
     juce::String amountId)
 {
-    oscWaveSelector.addItemList (
+    oscWaveSelector.addItemList(
         juce::StringArray { "Sine", "Saw", "Square" },
         1);
 
@@ -40,6 +40,42 @@ OscComponent::OscComponent (
         std::make_unique<
             juce::AudioProcessorValueTreeState::ComboBoxAttachment>
             (apvts, selectorId, oscWaveSelector);
+    
+    
+    // Keep the dropdown connected, but hide it
+    oscWaveSelector.setVisible(false);
+
+    sineButton.setButtonText("Sine");
+    sawButton.setButtonText("Saw");
+    squareButton.setButtonText("Square");
+
+    addAndMakeVisible(sineButton);
+    addAndMakeVisible(sawButton);
+    addAndMakeVisible(squareButton);
+
+    // Each button selects the matching parameter option
+    sineButton.onClick = [this]()
+    {
+        oscWaveSelector.setSelectedId(1, juce::sendNotificationSync);
+    };
+
+    sawButton.onClick = [this]()
+    {
+        oscWaveSelector.setSelectedId(2, juce::sendNotificationSync);
+    };
+
+    squareButton.onClick = [this]()
+    {
+        oscWaveSelector.setSelectedId(3, juce::sendNotificationSync);
+    };
+
+    oscWaveSelector.onChange = [this]()
+    {
+        updateWaveButtons();
+    };
+
+    updateWaveButtons();
+
 
     waveTypeLabel.setColour (
         juce::Label::textColourId,
@@ -68,6 +104,20 @@ OscComponent::OscComponent (
         fmDepthAttachment);
 }
 
+void OscComponent::updateWaveButtons()
+{
+    const int selected = oscWaveSelector.getSelectedId();
+
+    sineButton.setToggleState(
+        selected == 1, juce::dontSendNotification);
+
+    sawButton.setToggleState(
+        selected == 2, juce::dontSendNotification);
+
+    squareButton.setToggleState(
+        selected == 3, juce::dontSendNotification);
+}
+
 OscComponent::~OscComponent() = default;
 
 void OscComponent::paint (juce::Graphics& g)
@@ -89,36 +139,56 @@ void OscComponent::paint (juce::Graphics& g)
         juce::Justification::centredLeft);
 }
 
+
+
 void OscComponent::resized()
 {
-    auto content = getLocalBounds().reduced (panelPadding);
+    auto content = getLocalBounds().reduced(panelPadding);
 
-    content.removeFromTop (titleHeight);
+    // Space for panel title
+    content.removeFromTop(titleHeight);
 
-    waveTypeLabel.setBounds (
-        content.removeFromTop (labelHeight));
+    // Hide old dropdown and label
+    waveTypeLabel.setVisible(false);
+    oscWaveSelector.setVisible(false);
+    oscWaveSelector.setBounds(0, 0, 0, 0);
 
-    oscWaveSelector.setBounds (
-        content.removeFromTop (comboHeight));
+    // Left column: waveform radio buttons
+    auto waveArea = content.removeFromLeft(100);
 
-    content.removeFromTop (sectionGap);
+    content.removeFromLeft(controlGap);
 
-    const auto controlWidth =
+    const int rowHeight = waveArea.getHeight() / 3;
+
+    sineButton.setBounds(
+        waveArea.removeFromTop(rowHeight));
+
+    sawButton.setBounds(
+        waveArea.removeFromTop(rowHeight));
+
+    squareButton.setBounds(waveArea);
+
+    // Right columns: FM knobs
+    const int knobWidth =
         (content.getWidth() - controlGap) / 2;
 
-    auto frequencyArea = content.removeFromLeft (controlWidth);
-    content.removeFromLeft (controlGap);
+    auto frequencyArea =
+        content.removeFromLeft(knobWidth);
 
-    fmFrequencyLabel.setBounds (
-        frequencyArea.removeFromTop (labelHeight));
+    content.removeFromLeft(controlGap);
 
-    fmFrequencySlider.setBounds (frequencyArea);
+    fmFrequencyLabel.setBounds(
+        frequencyArea.removeFromTop(labelHeight));
 
-    fmDepthLabel.setBounds (
-        content.removeFromTop (labelHeight));
+    fmFrequencySlider.setBounds(frequencyArea);
 
-    fmDepthSlider.setBounds (content);
+    fmDepthLabel.setBounds(
+        content.removeFromTop(labelHeight));
+
+    fmDepthSlider.setBounds(content);
 }
+
+
 
 void OscComponent::setSliderAndLabel (
     juce::Slider& slider,
@@ -172,8 +242,12 @@ void OscComponent::setEffectiveFmDepth(float depth)
 
 void OscComponent::paintOverChildren(juce::Graphics& g)
 {
-    if (!hasEffectiveFmDepth)
+    if (!hasEffectiveFmDepth
+        || fmDepthSlider.getWidth() <= 0
+        || fmDepthSlider.getHeight() <= 0)
+    {
         return;
+    }
 
     const auto layout =
         fmDepthSlider.getLookAndFeel().getSliderLayout(fmDepthSlider);

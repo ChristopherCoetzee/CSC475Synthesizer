@@ -37,6 +37,9 @@
             file="Source/OscComponent.cpp"/>
       <FILE id="rlFkYd" name="OscComponent.h" compile="0" resource="0" file="Source/OscComponent.h"/>
     </GROUP>
+    <GROUP id="{E8A7C331-F4A8-147F-E26C-19FA8C0477AF}" name="Resources">
+      <FILE id="dC69Py" name="cats.png" compile="0" resource="1" file="Source/cats.png"/>
+    </GROUP>
   </MAINGROUP>
   <MODULES>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -58,7 +61,7 @@
   </MODULES>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX">
+    <XCODE_MAC targetFolder="Builds/MacOSX" microphonePermissionNeeded="1">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" targetName="CSC475Synthesizer"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="CSC475Synthesizer"/>

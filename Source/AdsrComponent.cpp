@@ -3,20 +3,20 @@
 
 namespace
 {
-    constexpr int panelPadding = 12;
-    constexpr int titleHeight = 26;
-    constexpr int titleGap = 8;
-    constexpr int labelHeight = 22;
+    constexpr int panelPadding = 6;
+    constexpr int titleHeight = 17;
+    constexpr int titleGap = 3;
+    constexpr int labelHeight = 13;
 
-    constexpr int sliderGap = 6;
+    constexpr int sliderGap = 4;
     constexpr int sliderCount = 4;
 
     constexpr int textBoxWidth = 60;
-    constexpr int textBoxHeight = 26;
+    constexpr int textBoxHeight = 16;
     constexpr int borderWidth = 1;
 
-    constexpr float titleFontSize = 17.0f;
-    constexpr float labelFontSize = 14.0f;
+    constexpr float titleFontSize = 12.0f;
+    constexpr float labelFontSize = 11.0f;
 }
 
 AdsrComponent::AdsrComponent (

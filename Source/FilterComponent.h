@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "OscComponent.h"
 
 class FilterComponent : public juce::Component
 {
@@ -21,6 +22,11 @@ public:
 
 private:
     juce::ComboBox filterTypeSelector;
+    WaveRadioButton lowPassButton;
+    WaveRadioButton bandPassButton;
+    WaveRadioButton highPassButton;
+
+    void updateFilterButtons();
 
     juce::Slider filterFrequencySlider;
     juce::Slider filterResonanceSlider;
