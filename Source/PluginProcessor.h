@@ -54,59 +54,60 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
-    
+
     juce::AudioProcessorValueTreeState apvts;
     std::atomic<float> inputRms { 0.0f};
     int readWaveformSamples (float* destination, int maxSamples);
     std::atomic<float> effectiveFmDepthForDisplay { 0.0f };
-    
+    std::atomic<float> effectiveFilterFrequencyForDisplay { 200.0f };
+
     std::atomic<float> inputCentroidHz { 0.0f };
     std::atomic<float> inputSpectralFlatness { 0.0f };
     std::atomic<float> effectiveResonanceForDisplay { 1.0f };
-    
+
 private:
     //==============================================================================
     juce::Synthesiser synthesizer;
-    
+
     float smoothedVoiceLevel { 0.0f };
     float smoothedVoiceBrightness { 0.0f };
-    
+
     // where we do microphone frequency analysis
-    
+
     static constexpr int fftOrder = 11;
     static constexpr int fftSize = 1 << fftOrder;
-    
+
     juce::dsp::FFT voiceFft { fftOrder };
-    
+
     juce::dsp::WindowingFunction<float> voiceWindow {
         fftSize,
         juce::dsp::WindowingFunction<float>::hann
     };
-    
+
     // we collect mic samples
-    
+
     std::array<float, fftSize> voiceAnalysisSamples {};
-    
+
     // another space for the fft
-    
+
     std::array<float, fftSize * 2> voiceFftData {};
-    
+
     int voiceAnalysisWritePosition { 0 };
 
     float voiceCentroidHz { 0.0f };
     float voiceSpectralFlatness { 0.0f };
     float smoothedResonanceBoost { 0.0f };
     bool hasValidSpectralFlatness { false };
-    
-    
+
+
     static constexpr int waveFormBufferSize = 32768;
-    
+
     std::array<float, waveFormBufferSize> waveformSamples {};
-    
+
     juce::AbstractFifo waveformFifo { waveFormBufferSize };
-    
+
     juce::AudioProcessorValueTreeState::ParameterLayout makeParameters();
-    
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CSC475SynthesizerAudioProcessor)
-    
+
 };

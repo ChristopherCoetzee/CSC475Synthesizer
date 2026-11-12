@@ -16,8 +16,9 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
-    
+
     void setEffectiveResonance(float resonance);
+    void setEffectiveFilterFrequency(float frequency);
     void paintOverChildren(juce::Graphics& g) override;
 
 private:
@@ -64,9 +65,12 @@ private:
         std::unique_ptr<
             juce::AudioProcessorValueTreeState::SliderAttachment>&
             attachment);
-    
+
     float effectiveResonance { 1.0f };
     bool hasEffectiveResonance { false };
+
+    float effectiveFilterFrequency { 200.0f };
+    bool hasEffectiveFilterFrequency { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterComponent)
 };
