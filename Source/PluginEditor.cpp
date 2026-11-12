@@ -23,21 +23,21 @@ namespace
 
         constexpr float titleFontSize = 17.0f;
         constexpr float noteFontSize = 14.0f;
-        
+
         constexpr int meterRefreshHz = 20;
         constexpr int rmsDecimalPlaces = 5;
-    
+
         // these are for the input voices waveform
-    
+
         constexpr int waveFormHistorySize = 512;
         constexpr int waveformSamplesPerPoint = 128;
         constexpr int waveformMaxReadsPerTick = 8;
         constexpr int rmsRowHeight = 22;
-    
+
         constexpr int centroidRowHeight = 22;
         constexpr int flatnessRowHeight = 22;
-    
-    
+
+
     }
 
     void drawReservedPanel (
@@ -179,18 +179,18 @@ CSC475SynthesizerAudioProcessorEditor (
     addAndMakeVisible (filter);
     addAndMakeVisible (adsr);
     addAndMakeVisible (modAdsr);
-    
+
     voiceWaveform.setSamplesPerBlock(Layout::waveformSamplesPerPoint);
     voiceWaveform.setBufferSize(Layout::waveFormHistorySize);
     voiceWaveform.setColours (
         juce::Colour (0xff100818),
         juce::Colour (0xffc084fc));
-    
+
     voiceWaveform.setRepaintRate(Layout::meterRefreshHz);
     addAndMakeVisible(voiceWaveform);
 
     setSize (Layout::editorWidth, Layout::editorHeight);
-    
+
     startTimerHz(Layout::meterRefreshHz);
 }
 
@@ -234,7 +234,7 @@ void CSC475SynthesizerAudioProcessorEditor::paint (
             + juce::String (currentInputRms, Layout::rmsDecimalPlaces),
         rmsArea.removeFromTop (Layout::rmsRowHeight),
         juce::Justification::centredLeft);
-    
+
     const float currentCentroidHz =
         audioProcessor.inputCentroidHz.load();
 
@@ -249,13 +249,13 @@ void CSC475SynthesizerAudioProcessorEditor::paint (
         centroidText,
         rmsArea.removeFromTop(Layout::centroidRowHeight),
         juce::Justification::centredLeft);
-    
+
     g.drawText(
         juce::String("Spectral flatness: ")
             + juce::String(audioProcessor.inputSpectralFlatness.load(), 3),
         rmsArea.removeFromTop(Layout::flatnessRowHeight),
         juce::Justification::centredLeft);
-    
+
     drawReservedPanel (
         g,
         inputControlsBounds,
@@ -292,16 +292,16 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
     audioVisualBounds = content.removeFromTop (visualHeight);
     content.removeFromTop (Layout::gap);
     voiceVisualBounds = content;
-    
+
     auto waveformArea = voiceVisualBounds.reduced (Layout::panelPadding);
-    
+
     waveformArea.removeFromTop(
         Layout::titleHeight
         + Layout::rmsRowHeight
         + Layout::centroidRowHeight
         + Layout::flatnessRowHeight
         + Layout::gap);
-    
+
     voiceWaveform.setBounds(waveformArea);
 
     // Top control row: FM modulation and filter.
@@ -329,20 +329,22 @@ void CSC475SynthesizerAudioProcessorEditor::timerCallback()
         audioProcessor.effectiveFmDepthForDisplay.load());
     filter.setEffectiveResonance(
         audioProcessor.effectiveResonanceForDisplay.load());
-    
+    filter.setEffectiveFilterFrequency(
+        audioProcessor.effectiveFilterFrequencyForDisplay.load());
+
     for (int read = 0; read < Layout::waveformMaxReadsPerTick; ++read)
     {
         const int samplesRead = audioProcessor.readWaveformSamples(waveformReadBuffer.data(),waveformReadBufferSize);
-        
+
         if (samplesRead == 0)
             break;
-        
+
         const float* channels[] = { waveformReadBuffer.data() };
         voiceWaveform.pushBuffer(channels, 1, samplesRead);
-        
+
         if (samplesRead < waveformReadBufferSize)
             break;
     }
-    
+
     repaint(voiceVisualBounds);
 }

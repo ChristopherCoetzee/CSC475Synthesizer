@@ -172,68 +172,76 @@ void FilterComponent::setEffectiveResonance(float resonance)
     repaint(filterResonanceSlider.getBounds());
 }
 
+void FilterComponent::setEffectiveFilterFrequency(float frequency)
+{
+    effectiveFilterFrequency = frequency;
+    hasEffectiveFilterFrequency = true;
+    repaint(filterFrequencySlider.getBounds());
+}
+
 void FilterComponent::paintOverChildren(juce::Graphics& g)
 {
-    if (!hasEffectiveResonance)
-        return;
+    // Shared drawing code for either knob.
+    const auto drawMarker = [&g](
+        juce::Slider& slider,
+        float effectiveValue)
+    {
+        const auto layout =
+            slider.getLookAndFeel().getSliderLayout(slider);
 
-    // Find the area occupied by the resonance knob.
-    const auto layout =
-        filterResonanceSlider.getLookAndFeel()
-            .getSliderLayout(filterResonanceSlider);
+        const auto knobArea = layout.sliderBounds.toFloat();
 
-    const auto knobArea = layout.sliderBounds.toFloat();
+        const float centreX =
+            static_cast<float>(slider.getX())
+            + knobArea.getCentreX();
 
-    const float centreX =
-        static_cast<float>(filterResonanceSlider.getX())
-        + knobArea.getCentreX();
+        const float centreY =
+            static_cast<float>(slider.getY())
+            + knobArea.getCentreY();
 
-    const float centreY =
-        static_cast<float>(filterResonanceSlider.getY())
-        + knobArea.getCentreY();
+        const float radius =
+            juce::jmin(knobArea.getWidth(), knobArea.getHeight())
+                * 0.5f
+            - knobDrawingPadding
+            + markerOffset;
 
+        if (radius <= markerRadius)
+            return;
 
-    const float radius =
-        juce::jmin(knobArea.getWidth(), knobArea.getHeight()) * 0.5f
-        - knobDrawingPadding
-        + markerOffset;
+        const double limitedValue = juce::jlimit(
+            slider.getMinimum(),
+            slider.getMaximum(),
+            static_cast<double>(effectiveValue));
 
-    if (radius <= markerRadius)
-        return;
+        // Use the knob's own scale, including its frequency skew.
+        const float position = static_cast<float>(
+            slider.valueToProportionOfLength(limitedValue));
 
-    // Make sure the displayed resonance stays within
-    // the knob's allowed range.
-    const double limitedResonance = juce::jlimit(
-        filterResonanceSlider.getMinimum(),
-        filterResonanceSlider.getMaximum(),
-        static_cast<double>(effectiveResonance));
+        const auto rotary = slider.getRotaryParameters();
 
-    // Convert resonance into a position around the knob.
-    const float position = static_cast<float>(
-        filterResonanceSlider.valueToProportionOfLength(
-            limitedResonance));
+        const float angle =
+            rotary.startAngleRadians
+            + position
+                * (rotary.endAngleRadians - rotary.startAngleRadians);
 
-    const auto rotary =
-        filterResonanceSlider.getRotaryParameters();
+        const float markerX =
+            centreX + std::sin(angle) * radius;
 
-    const float angle =
-        rotary.startAngleRadians
-        + position * (rotary.endAngleRadians
-                      - rotary.startAngleRadians);
+        const float markerY =
+            centreY - std::cos(angle) * radius;
 
-    // Calculate the purple ball's coordinates.
-    const float markerX =
-        centreX + std::sin(angle) * radius;
+        g.setColour(juce::Colour(0xffc084fc));
 
-    const float markerY =
-        centreY - std::cos(angle) * radius;
+        g.fillEllipse(
+            markerX - markerRadius,
+            markerY - markerRadius,
+            markerRadius * 2.0f,
+            markerRadius * 2.0f);
+    };
 
-    // Draw the purple ball.
-    g.setColour(juce::Colour(0xffc084fc));
+    if (hasEffectiveFilterFrequency)
+        drawMarker(filterFrequencySlider, effectiveFilterFrequency);
 
-    g.fillEllipse(
-        markerX - markerRadius,
-        markerY - markerRadius,
-        markerRadius * 2.0f,
-        markerRadius * 2.0f);
+    if (hasEffectiveResonance)
+        drawMarker(filterResonanceSlider, effectiveResonance);
 }

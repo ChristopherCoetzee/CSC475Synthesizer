@@ -104,7 +104,7 @@ void CSC475SynthesizerAudioProcessor::prepareToPlay(
     double sampleRate, int samplesPerBlock)
 {
     smoothedVoiceLevel = 0.0f;
-    
+
     voiceAnalysisSamples.fill(0.0f);
     voiceFftData.fill(0.0f);
     voiceAnalysisWritePosition = 0;
@@ -117,9 +117,9 @@ void CSC475SynthesizerAudioProcessor::prepareToPlay(
     hasValidSpectralFlatness = false;
     effectiveResonanceForDisplay.store(
         apvts.getRawParameterValue("FILTERRESONANCE")->load());
-    
+
     synthesizer.setCurrentPlaybackSampleRate(sampleRate);
-    
+
     const float manualResonance =
         apvts.getRawParameterValue("FILTERRESONANCE")->load();
 
@@ -129,7 +129,7 @@ void CSC475SynthesizerAudioProcessor::prepareToPlay(
         manualResonance + smoothedResonanceBoost);
 
     effectiveResonanceForDisplay.store(effectiveResonance);
-    
+
     for (int i = 0; i < synthesizer.getNumVoices(); ++i)
     {
         if (auto voice = dynamic_cast<SynthVoice*>(synthesizer.getVoice(i)))
@@ -162,9 +162,9 @@ bool CSC475SynthesizerAudioProcessor::isBusesLayoutSupported (const BusesLayout&
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
-    
+
     const auto inputChannels = layouts.getMainInputChannelSet();
-    
+
     if (inputChannels != juce::AudioChannelSet::disabled()
      && inputChannels != juce::AudioChannelSet::mono()
      && inputChannels != juce::AudioChannelSet::stereo())
@@ -186,39 +186,40 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
-    
+
     float measuredRms = 0.0f;
     if (totalNumInputChannels > 0 && buffer.getNumSamples() > 0)
     {
         measuredRms = buffer.getRMSLevel(0, 0, buffer.getNumSamples());
     }
-    
+
     inputRms.store(measuredRms);
-    
+
     // we smooth the voice before we use it to map to fmDepth
-    
+
     constexpr float noiseFloorRms = 0.005f;
+    constexpr float centroidNoiseFloorRms = 0.001f;
     constexpr float fullVoiceRms = 0.1f;
-    
+
     constexpr double smoothingSeconds = 0.05;
-    
+
     const float targetVoiceLevel = juce::jlimit(0.0f,1.0f,(measuredRms - noiseFloorRms)/ (fullVoiceRms-noiseFloorRms));
-    
+
     const double blockSeconds = static_cast<double>(buffer.getNumSamples()/ getSampleRate());
-    
+
     const float smoothingAmount = static_cast<float>(
         1.0 - std::exp(-blockSeconds / smoothingSeconds));
-    
+
     smoothedVoiceLevel +=
         smoothingAmount * (targetVoiceLevel - smoothedVoiceLevel);
-    
+
     constexpr float tonalFlatness = 0.03f;
     constexpr float noisyFlatness = 0.12f;
     constexpr float maxResonanceBoost = 2.0f;
-    
+
     float targetResonanceBoost = 0.0f;
 
-    if (hasValidSpectralFlatness)
+    if (hasValidSpectralFlatness && measuredRms > centroidNoiseFloorRms)
     {
         const float normalizedFlatness = juce::jlimit(
             0.0f,
@@ -240,16 +241,16 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
 
     smoothedResonanceBoost += resonanceSmoothingAmount
         * (targetResonanceBoost - smoothedResonanceBoost);
-    
+
     if (totalNumInputChannels > 0)
     {
         const float* inputSamples = buffer.getReadPointer(0);
-        
+
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
         {
             voiceAnalysisSamples[voiceAnalysisWritePosition] = inputSamples[sample];
             ++voiceAnalysisWritePosition;
-            
+
             if (voiceAnalysisWritePosition == fftSize)
             {
                 voiceFftData.fill(0.0f);
@@ -268,22 +269,22 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                     true);
 
                 double sumSquares = 0.0;
-                
+
                 for (int sample = 0; sample < fftSize; ++sample)
                 {
                     const double value = voiceAnalysisSamples[sample];
                     sumSquares += value * value;
                 }
-                
+
                 const double frameRms = std::sqrt(sumSquares / fftSize);
-                
-                
+
+
                 double weightedFrequencySum = 0.0;
                 double magnitudeSum = 0.0;
                 double logMagnitudeSum = 0.0;
-                
+
                 const double binWidthHz = getSampleRate()/ fftSize;
-                
+
                 for (int bin = 1; bin <= fftSize / 2; ++bin)
                 {
                     const double frequencyHz = bin * binWidthHz;
@@ -293,8 +294,8 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                     magnitudeSum += magnitude;
                     logMagnitudeSum += std::log(magnitude + 1.0e-12);
                 }
-                
-                if (frameRms > noiseFloorRms && magnitudeSum > 0.0)
+
+                if (frameRms > centroidNoiseFloorRms && magnitudeSum > 0.0)
                 {
                     voiceCentroidHz = static_cast<float>(
                         weightedFrequencySum / magnitudeSum);
@@ -303,36 +304,47 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                 {
                     voiceCentroidHz = 0.0f;
                 }
-                
+
                 inputCentroidHz.store(voiceCentroidHz);
-                
-                if (frameRms > noiseFloorRms && magnitudeSum > 1.0e-12)
+
+                if (frameRms > centroidNoiseFloorRms && magnitudeSum > 1.0e-12)
                 {
                     const double binCount = static_cast<double>(fftSize / 2);
 
-                    const double geometricMean = std::exp(logMagnitudeSum / binCount);
+                    const double geometricMean =
+                        std::exp(logMagnitudeSum / binCount);
 
                     const double arithmeticMean = magnitudeSum / binCount;
 
-                    voiceSpectralFlatness = juce::jlimit(0.0f,1.0f, static_cast<float>(geometricMean / arithmeticMean));
+                    voiceSpectralFlatness = juce::jlimit(
+                        0.0f,
+                        1.0f,
+                        static_cast<float>(geometricMean / arithmeticMean));
+
                     hasValidSpectralFlatness = true;
                 }
+                else
+                {
+                    voiceSpectralFlatness = 0.0f;
+                    hasValidSpectralFlatness = false;
+                }
+
                 inputSpectralFlatness.store(voiceSpectralFlatness);
 
-                
-                
+
+
 
                 voiceAnalysisWritePosition = 0;
             }
         }
     }
-    
-    constexpr float darkVoiceCentroidHz = 1500.0f;
+
+    constexpr float darkVoiceCentroidHz = 500.0f;
     constexpr float brightVoiceCentroidHz = 4000.0f;
     constexpr double brightnessSmoothingSeconds = 0.05;
 
     const float targetBrightness =
-        voiceCentroidHz > 0.0f && measuredRms > noiseFloorRms
+        voiceCentroidHz > 0.0f && measuredRms > centroidNoiseFloorRms
             ? juce::jlimit(
                 0.0f,
                 1.0f,
@@ -346,25 +358,25 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     smoothedVoiceBrightness +=
         brightnessSmoothingAmount
             * (targetBrightness - smoothedVoiceBrightness);
-    
+
     // we are writing the input samples for our waveform display into a buffer so that they can be read
-    
+
     if (totalNumInputChannels > 0 && buffer.getNumSamples() > 0)
     {
         int start1 = 0;
         int size1 = 0;
         int start2 = 0;
         int size2 = 0;
-        
+
         waveformFifo.prepareToWrite(buffer.getNumSamples(), start1, size1, start2, size2);
-        
+
         const float* inputSamples = buffer.getReadPointer(0);
-        
+
         if (size1 > 0 )
         {
             juce::FloatVectorOperations::copy (waveformSamples.data() + start1, inputSamples, size1);
         }
-        
+
         if (size2 > 0)
         {
             juce::FloatVectorOperations::copy (
@@ -372,13 +384,13 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                 inputSamples + size1,
                 size2);
         }
-        
+
         waveformFifo.finishedWrite(size1 + size2);
     }
-    
+
     for (auto i = 0; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
-    
+
     const float manualResonance =
         apvts.getRawParameterValue("FILTERRESONANCE")->load();
 
@@ -389,41 +401,41 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
 
     effectiveResonanceForDisplay.store(effectiveResonance);
 
-    
+
     for (int i = 0; i < synthesizer.getNumVoices(); ++i)
     {
         if (auto voice = dynamic_cast<SynthVoice*>(synthesizer.getVoice(i))) {
-            
+
             auto& attack = *apvts.getRawParameterValue("ATTACK");
             auto& decay = *apvts.getRawParameterValue("DECAY");
             auto& sustain = *apvts.getRawParameterValue("SUSTAIN" );
             auto& release = *apvts.getRawParameterValue("RELEASE");
-            
+
             auto& oscWave = *apvts.getRawParameterValue("OSC1WAVETYPE");
             auto& fmDepth =  *apvts.getRawParameterValue("FMDEPTH");
             auto& fmFrequency =  *apvts.getRawParameterValue("FMFREQUENCY");
-            
+
             auto& modAttack = *apvts.getRawParameterValue("MODATTACK");
             auto& modDecay = *apvts.getRawParameterValue("MODDECAY");
             auto& modSustain = *apvts.getRawParameterValue("MODSUSTAIN" );
             auto& modRelease = *apvts.getRawParameterValue("MODRELEASE");
-            
+
             auto& filterType = *apvts.getRawParameterValue("FILTERTYPE");
             auto& filterFrequency = *apvts.getRawParameterValue("FILTERFREQUENCY");
-            
-            
-            
-            
+
+
+
+
             voice->getOscillator().setWaveType(oscWave);
-            
+
             constexpr float voiceAmount = 200.0f;
             const float effectiveFmDepth = juce::jlimit(0.0f, 1000.0f, fmDepth.load() + voiceAmount * smoothedVoiceLevel);
-            
+
             // to reflect change in our gui as we sing.
             effectiveFmDepthForDisplay.store(effectiveFmDepth);
-            
+
             voice-> getOscillator().setFMParameters(effectiveFmDepth, fmFrequency.load());
-            
+
             voice->updateAdsr(attack, decay, sustain, release);
             // maximum upward filter movement caused by voice brightness
             constexpr float voiceFilterOctaves = 2.0f;
@@ -441,6 +453,9 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                 maximumCutoffHz,
                 filterFrequency.load() * frequencyMultiplier);
 
+            effectiveFilterFrequencyForDisplay.store(effectiveFilterFrequency);
+
+
             voice->updateFilter(
                 filterType.load(),
                 effectiveFilterFrequency,
@@ -448,9 +463,9 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             voice->updateModAdsr(modAttack, modDecay,modSustain, modRelease);
         }
     }
-    
+
     synthesizer.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples()); // renders the synths sounds
-    
+
     // we filter here
 };
 
@@ -488,13 +503,13 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProcessor::makeParameters()
 {
-    
+
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
 
     parameters.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"OSC", 1}, "Oscillator",
         juce::StringArray{"Sine", "Saw", "Square"}, 0));
-    
+
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"FMFREQUENCY", 1}, "FM Frequency",
         juce::NormalisableRange<float>{0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
@@ -502,8 +517,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"FMDEPTH", 1}, "FM Depth",
         juce::NormalisableRange<float>{0.0f, 1000.0f, 0.01f, 0.3f}, 0.0f));
-      
-    
+
+
 
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"ATTACK", 1}, "attack",
@@ -520,13 +535,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"RELEASE", 1}, "release",
         juce::NormalisableRange<float>{0.1f, 3.0f}, 0.4f));
-    
+
     parameters.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"OSC1WAVETYPE", 1}, "Oscillator 1 Wave Type",
         juce::StringArray{"Sin", "Saw", "Square"}, 0));
-    
+
     // filter adsr
-    
+
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"MODATTACK", 1}, "Mod Attack",
         juce::NormalisableRange<float>{0.1f, 1.0f}, 0.1f));
@@ -542,16 +557,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout CSC475SynthesizerAudioProces
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"MODRELEASE", 1}, "Mod Release",
         juce::NormalisableRange<float>{0.1f, 3.0f}, 0.4f));
-    
-    
+
+
     parameters.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"FILTERTYPE", 1}, "Filter Type",
         juce::StringArray{"Low-Pass", "Band-Pass", "High-Pass"}, 0));
-    
+
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"FILTERFREQUENCY", 1}, "Filter Frequency",
         juce::NormalisableRange<float>{20.0f, 20000.0f, 0.1f, 0.6f}, 200.0f));
-   
+
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"FILTERRESONANCE", 1}, "Filter Resonance",
         juce::NormalisableRange<float>{1.0f, 10.0f, 0.1f}, 1.0f));
@@ -562,19 +577,19 @@ int CSC475SynthesizerAudioProcessor::readWaveformSamples(float* destination, int
 {
     if (destination == nullptr || maxSamples <= 0)
         return 0;
-    
+
     int start1 = 0;
     int size1 = 0;
     int start2 = 0;
     int size2 = 0;
-    
+
     waveformFifo.prepareToRead(maxSamples,start1,size1, start2,size2);
-    
+
     if (size1 > 0)
     {
         juce::FloatVectorOperations::copy(destination, waveformSamples.data() + start1, size1);
     }
-    
+
     if (size2 > 0)
     {
         juce::FloatVectorOperations::copy (
@@ -582,10 +597,10 @@ int CSC475SynthesizerAudioProcessor::readWaveformSamples(float* destination, int
             waveformSamples.data() + start2,
             size2);
     }
-    
+
     const int samplesRead = size1 + size2;
-    
+
     waveformFifo.finishedRead(samplesRead);
-    
+
     return samplesRead;
 }
