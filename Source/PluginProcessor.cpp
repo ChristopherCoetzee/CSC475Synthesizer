@@ -111,9 +111,25 @@ void CSC475SynthesizerAudioProcessor::prepareToPlay(
     voiceCentroidHz = 0.0f;
     inputCentroidHz.store(0.0f);
     smoothedVoiceBrightness = 0.0f;
+    voiceSpectralFlatness = 0.0f;
+    inputSpectralFlatness.store(0.0f);
+    smoothedResonanceBoost = 0.0f;
+    hasValidSpectralFlatness = false;
+    effectiveResonanceForDisplay.store(
+        apvts.getRawParameterValue("FILTERRESONANCE")->load());
     
     synthesizer.setCurrentPlaybackSampleRate(sampleRate);
+    
+    const float manualResonance =
+        apvts.getRawParameterValue("FILTERRESONANCE")->load();
 
+    const float effectiveResonance = juce::jlimit(
+        1.0f,
+        10.0f,
+        manualResonance + smoothedResonanceBoost);
+
+    effectiveResonanceForDisplay.store(effectiveResonance);
+    
     for (int i = 0; i < synthesizer.getNumVoices(); ++i)
     {
         if (auto voice = dynamic_cast<SynthVoice*>(synthesizer.getVoice(i)))
@@ -196,6 +212,35 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     smoothedVoiceLevel +=
         smoothingAmount * (targetVoiceLevel - smoothedVoiceLevel);
     
+    constexpr float tonalFlatness = 0.03f;
+    constexpr float noisyFlatness = 0.12f;
+    constexpr float maxResonanceBoost = 2.0f;
+    
+    float targetResonanceBoost = 0.0f;
+
+    if (hasValidSpectralFlatness)
+    {
+        const float normalizedFlatness = juce::jlimit(
+            0.0f,
+            1.0f,
+            (voiceSpectralFlatness - tonalFlatness)
+                / (noisyFlatness - tonalFlatness));
+
+        targetResonanceBoost =
+            maxResonanceBoost * (1.0f - normalizedFlatness);
+    }
+
+    // Smooth resonance changes over time.
+    constexpr double resonanceSmoothingSeconds = 0.12;
+
+    const float resonanceSmoothingAmount =
+        static_cast<float>(
+            1.0 - std::exp(
+                -blockSeconds / resonanceSmoothingSeconds));
+
+    smoothedResonanceBoost += resonanceSmoothingAmount
+        * (targetResonanceBoost - smoothedResonanceBoost);
+    
     if (totalNumInputChannels > 0)
     {
         const float* inputSamples = buffer.getReadPointer(0);
@@ -235,6 +280,7 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                 
                 double weightedFrequencySum = 0.0;
                 double magnitudeSum = 0.0;
+                double logMagnitudeSum = 0.0;
                 
                 const double binWidthHz = getSampleRate()/ fftSize;
                 
@@ -245,6 +291,7 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
 
                     weightedFrequencySum += frequencyHz * magnitude;
                     magnitudeSum += magnitude;
+                    logMagnitudeSum += std::log(magnitude + 1.0e-12);
                 }
                 
                 if (frameRms > noiseFloorRms && magnitudeSum > 0.0)
@@ -258,6 +305,20 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
                 }
                 
                 inputCentroidHz.store(voiceCentroidHz);
+                
+                if (frameRms > noiseFloorRms && magnitudeSum > 1.0e-12)
+                {
+                    const double binCount = static_cast<double>(fftSize / 2);
+
+                    const double geometricMean = std::exp(logMagnitudeSum / binCount);
+
+                    const double arithmeticMean = magnitudeSum / binCount;
+
+                    voiceSpectralFlatness = juce::jlimit(0.0f,1.0f, static_cast<float>(geometricMean / arithmeticMean));
+                    hasValidSpectralFlatness = true;
+                }
+                inputSpectralFlatness.store(voiceSpectralFlatness);
+
                 
                 
 
@@ -318,6 +379,17 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     for (auto i = 0; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
     
+    const float manualResonance =
+        apvts.getRawParameterValue("FILTERRESONANCE")->load();
+
+    const float effectiveResonance = juce::jlimit(
+        1.0f,
+        10.0f,
+        manualResonance + smoothedResonanceBoost);
+
+    effectiveResonanceForDisplay.store(effectiveResonance);
+
+    
     for (int i = 0; i < synthesizer.getNumVoices(); ++i)
     {
         if (auto voice = dynamic_cast<SynthVoice*>(synthesizer.getVoice(i))) {
@@ -338,7 +410,7 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             
             auto& filterType = *apvts.getRawParameterValue("FILTERTYPE");
             auto& filterFrequency = *apvts.getRawParameterValue("FILTERFREQUENCY");
-            auto& filterResonance = *apvts.getRawParameterValue("FILTERRESONANCE");
+            
             
             
             
@@ -372,7 +444,7 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             voice->updateFilter(
                 filterType.load(),
                 effectiveFilterFrequency,
-                filterResonance.load());
+                effectiveResonance);
             voice->updateModAdsr(modAttack, modDecay,modSustain, modRelease);
         }
     }

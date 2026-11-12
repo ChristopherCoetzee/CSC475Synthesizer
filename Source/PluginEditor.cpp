@@ -35,6 +35,7 @@ namespace
         constexpr int rmsRowHeight = 22;
     
         constexpr int centroidRowHeight = 22;
+        constexpr int flatnessRowHeight = 22;
     
     
     }
@@ -242,12 +243,19 @@ void CSC475SynthesizerAudioProcessorEditor::paint (
             ? juce::String("Voice centroid: ")
                 + juce::String(currentCentroidHz, 0)
                 + " Hz"
-            : juce::String("Voice centroid: —");
+            : juce::String("Voice centroid: N/A");
 
     g.drawText(
         centroidText,
         rmsArea.removeFromTop(Layout::centroidRowHeight),
         juce::Justification::centredLeft);
+    
+    g.drawText(
+        juce::String("Spectral flatness: ")
+            + juce::String(audioProcessor.inputSpectralFlatness.load(), 3),
+        rmsArea.removeFromTop(Layout::flatnessRowHeight),
+        juce::Justification::centredLeft);
+    
     drawReservedPanel (
         g,
         inputControlsBounds,
@@ -291,6 +299,7 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
         Layout::titleHeight
         + Layout::rmsRowHeight
         + Layout::centroidRowHeight
+        + Layout::flatnessRowHeight
         + Layout::gap);
     
     voiceWaveform.setBounds(waveformArea);
@@ -318,6 +327,8 @@ void CSC475SynthesizerAudioProcessorEditor::timerCallback()
 {
     osc.setEffectiveFmDepth(
         audioProcessor.effectiveFmDepthForDisplay.load());
+    filter.setEffectiveResonance(
+        audioProcessor.effectiveResonanceForDisplay.load());
     
     for (int read = 0; read < Layout::waveformMaxReadsPerTick; ++read)
     {
