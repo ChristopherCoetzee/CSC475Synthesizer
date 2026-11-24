@@ -1,84 +1,140 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "KittyFont.h"
+#include "SynthScopeComponent.h"
 
 namespace
 {
-    namespace Layout
-    {
-        constexpr int editorWidth = 1100;
-        constexpr int editorHeight = 800;
-
-    
-        constexpr int bannerHeight = 410;
-
-        constexpr int margin = 8;
-        constexpr int gap = 6;
-
-        constexpr int controlsWidth = 650;
-        constexpr int topRowHeight = 145;
-
-        constexpr int inputControlsHeight = 30;
-        constexpr int midiHeight = 64;
-
-        constexpr int panelPadding = 6;
-        constexpr int titleHeight = 17;
-        constexpr int borderWidth = 1;
-
-        constexpr float titleFontSize = 17.0f;
-        constexpr float noteFontSize = 14.0f;
-
-        constexpr int meterRefreshHz = 20;
-        constexpr int rmsDecimalPlaces = 5;
-
-        // these are for the input voices waveform
-
-        constexpr int waveFormHistorySize = 512;
-        constexpr int waveformSamplesPerPoint = 128;
-        constexpr int waveformMaxReadsPerTick = 8;
-
-        constexpr int rmsRowHeight = 14;
-    
-        constexpr int centroidRowHeight = 14;
-        constexpr int flatnessRowHeight = 14;
-    
-    
-
-   
+namespace Layout
+{
+constexpr int editorWidth = 1100;
+constexpr int editorHeight = 800;
 
 
-    }
+constexpr int bannerHeight = 340;
 
-    void drawReservedPanel (
-        juce::Graphics& g,
-        juce::Rectangle<int> bounds,
-        const juce::String& title,
-        const juce::String& note)
-    {
-        g.setColour (juce::Colours::darkgrey);
-        g.drawRect (bounds, Layout::borderWidth);
+constexpr int margin = 8;
+constexpr int gap = 6;
 
-        auto content = bounds.reduced (Layout::panelPadding);
+constexpr int controlsWidth = 650;
+constexpr int topRowHeight = 145;
 
-        g.setColour (juce::Colours::white);
-        g.setFont (
-            juce::Font (juce::FontOptions (Layout::titleFontSize)));
+constexpr int inputControlsHeight = 52;
+constexpr int midiHeight = 64;
 
-        g.drawText (
-            title,
-            content.removeFromTop (Layout::titleHeight),
-            juce::Justification::centredLeft);
+constexpr int panelPadding = 6;
+constexpr int titleHeight = 25;
+constexpr int borderWidth = 1;
 
-        g.setColour (juce::Colours::lightgrey);
-        g.setFont (
-            juce::Font (juce::FontOptions (Layout::noteFontSize)));
+constexpr float titleFontSize = 20.0f;
+constexpr float noteFontSize = 16.0f;
 
-        g.drawFittedText (
-            note,
-            content,
-            juce::Justification::centredLeft,
-            2);
-    }
+constexpr int meterRefreshHz = 20;
+constexpr int rmsDecimalPlaces = 5;
+
+// these are for the input voices waveform
+
+constexpr int waveFormHistorySize = 512;
+constexpr int waveformSamplesPerPoint = 128;
+constexpr int waveformMaxReadsPerTick = 8;
+
+constexpr int rmsRowHeight = 18;
+constexpr int centroidRowHeight = 18;
+constexpr int flatnessRowHeight = 18;
+
+namespace Colours
+{
+const auto paper        = juce::Colour(0xfffffdf6); // white paper
+const auto textDark     = juce::Colour(0xff5f4a5f); // darker purple-grey for general text
+
+const auto oscRed       = juce::Colour(0xffde6b6b);
+const auto filterOrange = juce::Colour(0xfff0a35a);
+const auto synthYellow  = juce::Colour(0xffe7cf57);
+const auto ampBlue      = juce::Colour(0xff6faee8);
+const auto modGreen     = juce::Colour(0xff7fc97f);
+const auto inputPink    = juce::Colour(0xffe694bd);
+const auto midiPurple   = juce::Colour(0xffaf8ee6);
+
+const auto oscText      = juce::Colour(0xffb24e4e);
+const auto filterText   = juce::Colour(0xffb56f33);
+const auto synthText    = juce::Colour(0xff9f8b1d);
+const auto ampText      = juce::Colour(0xff4e85b8);
+const auto modText      = juce::Colour(0xff4f9550);
+const auto inputText    = juce::Colour(0xffb85b8e);
+const auto midiText     = juce::Colour(0xff7a5db3);
 }
+
+
+
+
+
+}
+
+
+void drawReservedPanel(
+                       juce::Graphics& g,
+                       juce::Rectangle<int> bounds,
+                       const juce::String& title,
+                       const juce::String& note)
+    {
+        // Each section has its own border and title colour
+        auto borderColour = Layout::Colours::midiPurple;
+        auto titleColour = Layout::Colours::midiText;
+
+        if (title.startsWith("Synth Output"))
+        {
+            borderColour = Layout::Colours::synthYellow;
+            titleColour = juce::Colour(0xffb84be8);
+        }
+        
+        else if (title.startsWith("Live voice")
+                 || title.startsWith("Sound input"))
+        {
+            borderColour = Layout::Colours::inputPink;
+            titleColour = juce::Colour(0xfff88b18);
+        }
+            
+        // Paper-coloured panel background
+        g.setColour(juce::Colour(0xfffffdf6));
+        g.fillRect(bounds);
+        
+        // Coloured border
+        g.setColour(borderColour);
+        g.drawRect(bounds, 2);
+        
+        auto content = bounds.reduced(Layout::panelPadding);
+        
+        // Playful handwritten headings
+        const bool isLivePanel =
+        title.startsWithIgnoreCase("Live voice");
+
+    // Orange heading for live-input panel only
+    // Use each panel's own title colour
+        g.setColour(titleColour);
+
+        g.setFont(
+                  KittyFont::make(
+                                  isLivePanel ? 17.0f :    Layout::titleFontSize));
+        
+        g.drawFittedText(
+            title.toUpperCase(),
+            content.removeFromTop(Layout::titleHeight),
+            juce::Justification::centredLeft,
+            1);
+        
+        // Smaller description text
+        g.setColour(Layout::Colours::textDark);
+
+        g.setFont(KittyFont::make(Layout::noteFontSize));
+        
+        g.drawFittedText(
+                         note,
+                         content,
+                         juce::Justification::centredLeft,
+                         2);
+        }
+}
+
 
 CSC475SynthesizerAudioProcessorEditor::
 CSC475SynthesizerAudioProcessorEditor (
@@ -110,10 +166,10 @@ CSC475SynthesizerAudioProcessorEditor (
         "FILTERFREQUENCY",
         "FILTERRESONANCE")
 {
-    const auto background = juce::Colours::black;
-    const auto foreground = juce::Colours::white;
-    const auto outline = juce::Colours::darkgrey;
-    const auto accent = juce::Colours::lightgrey;
+    const auto background = Layout::Colours::paper;
+    const auto foreground = Layout::Colours::textDark;
+    const auto outline    = juce::Colour(0xffa08e9a);
+    const auto accent     = Layout::Colours::inputPink;
 
     blackLookAndFeel.setColour (
         juce::ResizableWindow::backgroundColourId, background);
@@ -192,13 +248,20 @@ CSC475SynthesizerAudioProcessorEditor (
     addAndMakeVisible(voiceWaveform);
     
 
+    addAndMakeVisible(synthWaveform);
 
 
     voiceWaveform.setSamplesPerBlock(Layout::waveformSamplesPerPoint);
     voiceWaveform.setBufferSize(Layout::waveFormHistorySize);
-    voiceWaveform.setColours (
-        juce::Colour (0xff100818),
-        juce::Colour (0xffc084fc));
+    // Microphone input: red waveform
+    voiceWaveform.setColours(
+        juce::Colour(0xffffe3ed),
+        juce::Colour(0xfff88b18));
+
+    // Synth output: green waveform
+    synthWaveform.setColours(
+        juce::Colour(0xfffff06a),
+        juce::Colour(0xffc040e0));
 
     voiceWaveform.setRepaintRate(Layout::meterRefreshHz);
 
@@ -221,36 +284,37 @@ void CSC475SynthesizerAudioProcessorEditor::paint(
     juce::Graphics& g)
 {
     
-    // Purple background behind the illustration
-    g.setColour(juce::Colour(0xff24223d));
-    g.fillRoundedRectangle(
-        catBannerBounds.toFloat(), 14.0f);
+    // Background behind the UI
+    g.fillAll(juce::Colour(0xffc8faf3)); // same sky blue as the cat image
 
-    // Draw the sleeping-cat illustration
+    // Draw the cat banner directly with no inner white gap or border
     if (catImage.isValid())
     {
+        juce::Path bannerClip;
+        bannerClip.addRoundedRectangle(catBannerBounds.toFloat(), 14.0f);
+
         g.saveState();
-        g.reduceClipRegion(catBannerBounds);
+        g.reduceClipRegion(bannerClip);
 
         g.drawImage(
             catImage,
             catBannerBounds.toFloat(),
-                    juce::RectanglePlacement::centred);
+            juce::RectanglePlacement::fillDestination);
 
         g.restoreState();
     }
 
-    // Lavender outline around the artwork
-    g.setColour(juce::Colour(0xff9c8abf));
-    g.drawRoundedRectangle(
-        catBannerBounds.toFloat(), 14.0f, 1.5f);
+
+    //g.setColour(Layout::Colours::synthYellow);
+   // g.drawRoundedRectangle(
+        //catBannerBounds.toFloat(), 14.0f, 1.0f);
 
 
     drawReservedPanel (
         g,
         audioVisualBounds,
-        "Audio transformation visual",
-        "Reserved for displaying how parameters change the audio.");
+        "Synth Output Waveform",
+        "");
 
     drawReservedPanel (
         g,
@@ -265,9 +329,11 @@ void CSC475SynthesizerAudioProcessorEditor::paint(
 
     const float currentInputRms = audioProcessor.inputRms.load();
 
-    g.setColour (juce::Colours::lightgrey);
-    g.setFont (
-        juce::Font (juce::FontOptions (Layout::noteFontSize)));
+    // Darker orange from the cat's colour family
+    g.setColour(juce::Colour(0xfff88b18));
+
+    // Smaller handwritten font
+    g.setFont(KittyFont::make(14.0f));
 
     g.drawText (
         juce::String ("Input RMS: ")
@@ -344,6 +410,18 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
 
     audioVisualBounds =
         content.removeFromTop(visualHeight);
+    
+    // Place the synth waveform inside the upper-right panel
+    auto synthWaveformArea =
+        audioVisualBounds.reduced(Layout::panelPadding);
+
+    synthWaveformArea.removeFromTop(
+        Layout::titleHeight + Layout::gap);
+
+    // Make the yellow display smaller on all four sides
+    synthWaveformArea.reduce(12, 12);
+
+    synthWaveform.setBounds(synthWaveformArea);
 
     content.removeFromTop(Layout::gap);
 
@@ -363,8 +441,9 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
         + Layout::flatnessRowHeight
         + Layout::gap);
 
-    voiceWaveform.setBounds(waveformArea);
-
+    voiceWaveform.setBounds(
+        waveformArea.reduced(8, 2));
+    
     // 6. Oscillator and filter on the first row
     auto topRow =
         controls.removeFromTop(Layout::topRowHeight);
@@ -389,31 +468,78 @@ void CSC475SynthesizerAudioProcessorEditor::resized()
     modAdsr.setBounds(controls);
 
     repaint();
+    
+    
 }
+
 
 
 void CSC475SynthesizerAudioProcessorEditor::timerCallback()
 {
+    // Update the control indicators
     osc.setEffectiveFmDepth(
         audioProcessor.effectiveFmDepthForDisplay.load());
+
     filter.setEffectiveResonance(
         audioProcessor.effectiveResonanceForDisplay.load());
+
     filter.setEffectiveFilterFrequency(
         audioProcessor.effectiveFilterFrequencyForDisplay.load());
 
-    for (int read = 0; read < Layout::waveformMaxReadsPerTick; ++read)
+    // 1. LIVE MICROPHONE WAVEFORM
+    // Keep using JUCE's AudioVisualiserComponent
+    for (int read = 0;
+         read < Layout::waveformMaxReadsPerTick;
+         ++read)
     {
-        const int samplesRead = audioProcessor.readWaveformSamples(waveformReadBuffer.data(),waveformReadBufferSize);
+        const int samplesRead =
+            audioProcessor.readWaveformSamples(
+                waveformReadBuffer.data(),
+                waveformReadBufferSize);
 
         if (samplesRead == 0)
             break;
 
-        const float* channels[] = { waveformReadBuffer.data() };
-        voiceWaveform.pushBuffer(channels, 1, samplesRead);
+        const float* channels[] = {
+            waveformReadBuffer.data()
+        };
+
+        voiceWaveform.pushBuffer(
+            channels, 1, samplesRead);
 
         if (samplesRead < waveformReadBufferSize)
             break;
     }
 
+    // 2. SYNTH OUTPUT WAVEFORM
+    // Send raw audio samples to our custom oscilloscope
+    for (int read = 0;
+         read < Layout::waveformMaxReadsPerTick;
+         ++read)
+    {
+        const int samplesRead =
+            audioProcessor.readSynthWaveformSamples(
+                waveformReadBuffer.data(),
+                waveformReadBufferSize);
+
+        if (samplesRead == 0)
+            break;
+
+        synthWaveform.pushSamples(
+            waveformReadBuffer.data(),
+            samplesRead);
+
+        if (samplesRead < waveformReadBufferSize)
+            break;
+    }
+    // Update synth oscilloscope every fourth timer tick
+    if (++scopeRefreshCounter >= 4)
+    {
+        scopeRefreshCounter = 0;
+        synthWaveform.repaint();
+    }
+
+    // Refresh the live microphone readings
     repaint(voiceVisualBounds);
 }
+

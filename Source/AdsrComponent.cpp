@@ -1,25 +1,28 @@
 #include "AdsrComponent.h"
+#include "KittyFont.h"
 #include <array>
 
 namespace
 {
-    constexpr int panelPadding = 6;
-    constexpr int titleHeight = 17;
-    constexpr int titleGap = 3;
-    constexpr int labelHeight = 13;
+    constexpr int panelPadding = 5;
+    constexpr int titleHeight = 24;
+    constexpr int titleGap = 2;
+    constexpr int labelHeight = 19;
 
     constexpr int sliderGap = 4;
     constexpr int sliderCount = 4;
 
-    constexpr int textBoxWidth = 60;
-    constexpr int textBoxHeight = 16;
-    constexpr int borderWidth = 1;
+    constexpr int textBoxWidth = 72;
+    constexpr int textBoxHeight = 20;
 
-    constexpr float titleFontSize = 12.0f;
-    constexpr float labelFontSize = 11.0f;
+    constexpr int borderWidth = 1;
+    constexpr float titleFontSize = 18.0f;
+    constexpr float labelFontSize = 15.0f;
 }
 
+
 AdsrComponent::AdsrComponent (
+                              
     juce::String name,
     juce::AudioProcessorValueTreeState& apvts,
     juce::String attackId,
@@ -28,6 +31,22 @@ AdsrComponent::AdsrComponent (
     juce::String releaseId)
     : componentName (name)
 {
+    // Blue paws for Amplitude ADSR, green for Modulation ADSR
+    pawSliderLookAndFeel.setPawColour(
+        componentName == "Amplitude ADSR"
+            ? juce::Colour(0xff6faee8)
+            : juce::Colour(0xff7fc97f));
+    const bool isAmplitude =
+        (componentName == "Amplitude ADSR");
+
+    const auto accent = isAmplitude
+        ? juce::Colour(0xff6faee8)  // Blue
+        : juce::Colour(0xff7fc97f); // Green
+
+    const auto darkAccent = isAmplitude
+        ? juce::Colour(0xff3f729e)
+        : juce::Colour(0xff3e8249);
+    
     const std::array<juce::Slider*, sliderCount> sliders
     {{
         &attackSlider,
@@ -57,18 +76,40 @@ AdsrComponent::AdsrComponent (
             true,
             textBoxWidth,
             textBoxHeight);
-
+        
+        // Apply the cat-paw design
+        slider.setLookAndFeel(&pawSliderLookAndFeel);
+        
         slider.setName (
             componentName + " " + label.getText());
+        
+        // Match slider colours to its ADSR section
+        slider.setColour(
+            juce::Slider::trackColourId, accent);
+
+        slider.setColour(
+            juce::Slider::backgroundColourId,
+            accent.withAlpha(0.35f));
+
+        slider.setColour(
+            juce::Slider::thumbColourId, darkAccent);
+
+        slider.setColour(
+            juce::Slider::textBoxTextColourId, darkAccent);
+
+        slider.setColour(
+            juce::Slider::textBoxBackgroundColourId,
+            juce::Colour(0xfffffdf6));
+
+        slider.setColour(
+            juce::Slider::textBoxOutlineColourId,
+            darkAccent.withAlpha(0.65f));
 
         addAndMakeVisible (slider);
 
-        label.setColour (
-            juce::Label::textColourId,
-            juce::Colours::white);
+        label.setColour (juce::Label::textColourId, darkAccent);
 
-        label.setFont (
-            juce::Font (juce::FontOptions (labelFontSize)));
+        label.setFont(KittyFont::make(labelFontSize));
 
         label.setJustificationType (
             juce::Justification::centred);
@@ -96,25 +137,46 @@ AdsrComponent::AdsrComponent (
             apvts, releaseId, releaseSlider);
 }
 
-AdsrComponent::~AdsrComponent() = default;
-
-void AdsrComponent::paint (juce::Graphics& g)
+AdsrComponent::~AdsrComponent()
 {
-    g.fillAll (juce::Colours::black);
+    attackSlider.setLookAndFeel(nullptr);
+    decaySlider.setLookAndFeel(nullptr);
+    sustainSlider.setLookAndFeel(nullptr);
+    releaseSlider.setLookAndFeel(nullptr);
+}
 
-    g.setColour (juce::Colours::darkgrey);
-    g.drawRect (getLocalBounds(), borderWidth);
-
-    g.setColour (juce::Colours::white);
-    g.setFont (
-        juce::Font (juce::FontOptions (titleFontSize)));
-
-    g.drawText (
-        componentName,
-        getLocalBounds()
-            .reduced (panelPadding)
-            .removeFromTop (titleHeight),
-        juce::Justification::centredLeft);
+void AdsrComponent::paint(juce::Graphics& g)
+{
+    // Warm paper background
+    g.fillAll(juce::Colour(0xfffffdf6));
+    
+    // Blue Amplitude ADSR, green Modulation ADSR
+    const bool isAmplitude =
+    (componentName == "Amplitude ADSR");
+    
+    const auto borderColour = isAmplitude
+    ? juce::Colour(0xff6faee8)
+    : juce::Colour(0xff7fc97f);
+    
+    const auto titleColour = isAmplitude
+    ? juce::Colour(0xff4e85b8)
+    : juce::Colour(0xff4f9550);
+    
+    g.setColour(borderColour);
+    g.drawRect(getLocalBounds(), 2);
+    
+    // Dark, readable labels
+    g.setColour(titleColour);
+    
+    g.setFont(KittyFont::make(titleFontSize));
+    
+    g.drawFittedText(
+                     componentName.toUpperCase(),
+                     getLocalBounds()
+                     .reduced(panelPadding)
+                     .removeFromTop(titleHeight),
+                     juce::Justification::centredLeft,
+                     1);
 }
 
 void AdsrComponent::resized()

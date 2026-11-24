@@ -1,22 +1,23 @@
 #include "FilterComponent.h"
+#include "KittyFont.h"
 #include <cmath>
 
 namespace
 {
     constexpr int panelPadding = 6;
-    constexpr int titleHeight = 17;
-    constexpr int labelHeight = 13;
+    constexpr int titleHeight = 24;
+    constexpr int labelHeight = 19;
     constexpr int comboHeight = 20;
 
     constexpr int sectionGap = 3;
     constexpr int controlGap = 6;
 
     constexpr int textBoxWidth = 72;
-    constexpr int textBoxHeight = 16;
+    constexpr int textBoxHeight = 20;
     constexpr int borderWidth = 1;
 
-    constexpr float titleFontSize = 12.0f;
-    constexpr float labelFontSize = 11.0f;
+    constexpr float titleFontSize = 18.0f;
+    constexpr float labelFontSize = 15.0f;
 
     constexpr float knobDrawingPadding = 10.0f;
     constexpr float markerOffset = 4.0f;
@@ -52,6 +53,13 @@ FilterComponent::FilterComponent (
     lowPassButton.setButtonText("Low-Pass");
     bandPassButton.setButtonText("Band-Pass");
     highPassButton.setButtonText("High-Pass");
+    
+    // Orange filter selection buttons
+    const auto orange = juce::Colour(0xfff0a35a);
+
+    lowPassButton.setAccentColour(orange);
+    bandPassButton.setAccentColour(orange);
+    highPassButton.setAccentColour(orange);
 
     // Make the buttons visible
     addAndMakeVisible(lowPassButton);
@@ -88,7 +96,7 @@ FilterComponent::FilterComponent (
 
     filterSelectorLabel.setColour (
         juce::Label::textColourId,
-        juce::Colours::white);
+        juce::Colour(0xff604d60));
 
     filterSelectorLabel.setFont (
         juce::Font (juce::FontOptions (labelFontSize)));
@@ -104,7 +112,11 @@ FilterComponent::FilterComponent (
         apvts,
         frequencyId,
         filterFrequencyAttachment);
-
+    
+    // Apply orange retro knobs
+    filterFrequencySlider.setLookAndFeel(&filterKnobLookAndFeel);
+    filterResonanceSlider.setLookAndFeel(&filterKnobLookAndFeel);
+    
     setSliderAndLabel (
         filterResonanceSlider,
         filterResonanceLabel,
@@ -126,25 +138,32 @@ void FilterComponent::updateFilterButtons()
         selected == 3, juce::dontSendNotification);
 }
 
-FilterComponent::~FilterComponent() = default;
+FilterComponent::~FilterComponent()
+{
+    filterFrequencySlider.setLookAndFeel(nullptr);
+    filterResonanceSlider.setLookAndFeel(nullptr);
+}
 
 void FilterComponent::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colours::black);
+    // Warm white paper background
+    g.fillAll(juce::Colour(0xfffffdf6));
 
-    g.setColour (juce::Colours::darkgrey);
-    g.drawRect (getLocalBounds(), borderWidth);
+    // Crayon orange border
+    g.setColour(juce::Colour(0xfff0a35a));
+    g.drawRect(getLocalBounds(), 2);
 
-    g.setColour (juce::Colours::white);
-    g.setFont (
-        juce::Font (juce::FontOptions (titleFontSize)));
+    // Soft dark text
+    g.setColour(juce::Colour(0xffb56f33));
+    g.setFont(KittyFont::make(titleFontSize));
 
-    g.drawText (
-        "Filter",
+    g.drawFittedText(
+        "FILTER",
         getLocalBounds()
-            .reduced (panelPadding)
-            .removeFromTop (titleHeight),
-        juce::Justification::centredLeft);
+            .reduced(panelPadding)
+            .removeFromTop(titleHeight),
+        juce::Justification::centredLeft,
+        1);
 }
 
 
@@ -215,6 +234,30 @@ void FilterComponent::setSliderAndLabel (
         textBoxHeight);
 
     slider.setName (label.getText());
+    // Orange filter knobs and readable values
+    const auto orange = juce::Colour(0xfff0a35a);
+    const auto darkOrange = juce::Colour(0xff9d632d);
+
+    slider.setColour(
+        juce::Slider::rotarySliderFillColourId, orange);
+
+    slider.setColour(
+        juce::Slider::rotarySliderOutlineColourId,
+        orange.withAlpha(0.40f));
+
+    slider.setColour(
+        juce::Slider::thumbColourId, darkOrange);
+
+    slider.setColour(
+        juce::Slider::textBoxTextColourId, darkOrange);
+
+    slider.setColour(
+        juce::Slider::textBoxBackgroundColourId,
+        juce::Colour(0xfffffdf6));
+
+    slider.setColour(
+        juce::Slider::textBoxOutlineColourId,
+        darkOrange.withAlpha(0.65f));
 
     addAndMakeVisible (slider);
 
@@ -225,10 +268,9 @@ void FilterComponent::setSliderAndLabel (
 
     label.setColour (
         juce::Label::textColourId,
-        juce::Colours::white);
+        juce::Colour(0xff9d632d));
 
-    label.setFont (
-        juce::Font (juce::FontOptions (labelFontSize)));
+    label.setFont(KittyFont::make(labelFontSize));
 
     label.setJustificationType (
         juce::Justification::centred);
@@ -271,11 +313,11 @@ void FilterComponent::paintOverChildren(juce::Graphics& g)
             static_cast<float>(slider.getY())
             + knobArea.getCentreY();
 
-        const float radius =
-            juce::jmin(knobArea.getWidth(), knobArea.getHeight())
-                * 0.5f
-            - knobDrawingPadding
-            + markerOffset;
+        const float knobDiameter = juce::jmin(
+            56.0f,
+            juce::jmin(knobArea.getWidth(), knobArea.getHeight()) - 4.0f);
+
+        const float radius = knobDiameter * 0.5f + 4.0f;
 
         if (radius <= markerRadius)
             return;
@@ -302,7 +344,7 @@ void FilterComponent::paintOverChildren(juce::Graphics& g)
         const float markerY =
             centreY - std::cos(angle) * radius;
 
-        g.setColour(juce::Colour(0xffc084fc));
+        g.setColour(juce::Colour(0xfff0a35a));
 
         g.fillEllipse(
             markerX - markerRadius,

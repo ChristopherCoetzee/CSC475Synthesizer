@@ -29,6 +29,9 @@ private:
 
     void updateFilterButtons();
 
+    // Orange retro metallic knob appearance
+    RetroMetalKnobLookAndFeel filterKnobLookAndFeel { true };
+
     juce::Slider filterFrequencySlider;
     juce::Slider filterResonanceSlider;
 
@@ -65,6 +68,8 @@ private:
         std::unique_ptr<
             juce::AudioProcessorValueTreeState::SliderAttachment>&
             attachment);
+    
+
 
     float effectiveResonance { 1.0f };
     bool hasEffectiveResonance { false };

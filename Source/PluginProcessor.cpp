@@ -101,8 +101,12 @@ void CSC475SynthesizerAudioProcessor::changeProgramName (int index, const juce::
 
 //==============================================================================
 void CSC475SynthesizerAudioProcessor::prepareToPlay(
+                                    
     double sampleRate, int samplesPerBlock)
 {
+    testMidiCycleSample = 0;
+    
+
     smoothedVoiceLevel = 0.0f;
 
     voiceAnalysisSamples.fill(0.0f);
@@ -140,6 +144,11 @@ void CSC475SynthesizerAudioProcessor::prepareToPlay(
                 getTotalNumOutputChannels());
         }
     }
+    
+    
+
+
+
 }
 
 void CSC475SynthesizerAudioProcessor::releaseResources()
@@ -198,7 +207,11 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     // we smooth the voice before we use it to map to fmDepth
 
     constexpr float noiseFloorRms = 0.005f;
-    constexpr float centroidNoiseFloorRms = 0.001f;
+   // constexpr float centroidNoiseFloorRms = 0.001f;
+    // Background noise was passing the low RMS threshold (0.001), causing its
+    // spectral centroid to increase the filter cutoff even when I wasn't making noise.
+    // I raised the threshold to 0.005 so only louder audio can affect the filter.
+    constexpr float centroidNoiseFloorRms = 0.005f;
     constexpr float fullVoiceRms = 0.1f;
 
     constexpr double smoothingSeconds = 0.05;
@@ -463,8 +476,80 @@ void CSC475SynthesizerAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
             voice->updateModAdsr(modAttack, modDecay,modSustain, modRelease);
         }
     }
+    
+    // TEMPORARY TEST: Play middle C every 2 seconds
+   #if JUCE_DEBUG
+    constexpr bool enableTestMidiNote = true;
+
+    if (enableTestMidiNote && getSampleRate() > 0.0)
+    {
+        const int cycleSamples =
+            static_cast<int>(getSampleRate() * 2.0);
+
+        const int noteLength =
+            static_cast<int>(getSampleRate() * 1.25);
+
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        {
+            if (testMidiCycleSample == 0)
+            {
+                midiMessages.addEvent(
+                    juce::MidiMessage::noteOn(1, 60, 0.6f),
+                    sample);
+            }
+
+            if (testMidiCycleSample == noteLength)
+            {
+                midiMessages.addEvent(
+                    juce::MidiMessage::noteOff(1, 60),
+                    sample);
+            }
+
+            ++testMidiCycleSample;
+
+            if (testMidiCycleSample >= cycleSamples)
+                testMidiCycleSample = 0;
+        }
+    }
+   #endif
+
+    
+    
 
     synthesizer.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples()); // renders the synths sounds
+    
+    // Save the synthesized audio for the output waveform display
+    if (totalNumOutputChannels > 0 && buffer.getNumSamples() > 0)
+    {
+        int start1 = 0;
+        int size1 = 0;
+        int start2 = 0;
+        int size2 = 0;
+
+        synthWaveformFifo.prepareToWrite(
+            buffer.getNumSamples(), start1, size1, start2, size2);
+
+        const float* outputSamples = buffer.getReadPointer(0);
+
+        if (size1 > 0)
+        {
+            juce::FloatVectorOperations::copy(
+                synthWaveformSamples.data() + start1,
+                outputSamples,
+                size1);
+        }
+
+        if (size2 > 0)
+        {
+            juce::FloatVectorOperations::copy(
+                synthWaveformSamples.data() + start2,
+                outputSamples + size1,
+                size2);
+        }
+
+        synthWaveformFifo.finishedWrite(size1 + size2);
+    }
+
 
     // we filter here
 };
@@ -601,6 +686,44 @@ int CSC475SynthesizerAudioProcessor::readWaveformSamples(float* destination, int
     const int samplesRead = size1 + size2;
 
     waveformFifo.finishedRead(samplesRead);
+
+    return samplesRead;
+}
+
+
+int CSC475SynthesizerAudioProcessor::readSynthWaveformSamples(
+    float* destination, int maxSamples)
+{
+    if (destination == nullptr || maxSamples <= 0)
+        return 0;
+
+    int start1 = 0;
+    int size1 = 0;
+    int start2 = 0;
+    int size2 = 0;
+
+    synthWaveformFifo.prepareToRead(
+        maxSamples, start1, size1, start2, size2);
+
+    if (size1 > 0)
+    {
+        juce::FloatVectorOperations::copy(
+            destination,
+            synthWaveformSamples.data() + start1,
+            size1);
+    }
+
+    if (size2 > 0)
+    {
+        juce::FloatVectorOperations::copy(
+            destination + size1,
+            synthWaveformSamples.data() + start2,
+            size2);
+    }
+
+    const int samplesRead = size1 + size2;
+
+    synthWaveformFifo.finishedRead(samplesRead);
 
     return samplesRead;
 }

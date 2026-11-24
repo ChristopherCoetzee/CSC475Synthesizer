@@ -1,4 +1,5 @@
 #include "OscComponent.h"
+#include "KittyFont.h"
 #include <cmath>
 
 namespace
@@ -12,7 +13,7 @@ namespace
     constexpr int controlGap = 6;
 
     constexpr int textBoxWidth = 72;
-    constexpr int textBoxHeight = 16;
+    constexpr int textBoxHeight = 20;
     constexpr int borderWidth = 1;
 
     constexpr float titleFontSize = 12.0f;
@@ -79,10 +80,9 @@ OscComponent::OscComponent (
 
     waveTypeLabel.setColour (
         juce::Label::textColourId,
-        juce::Colours::white);
+        juce::Colour(0xff604d60));
 
-    waveTypeLabel.setFont (
-        juce::Font (juce::FontOptions (labelFontSize)));
+    waveTypeLabel.setFont(KittyFont::make(15.0f));
 
     waveTypeLabel.setJustificationType (
         juce::Justification::centredLeft);
@@ -95,6 +95,37 @@ OscComponent::OscComponent (
         apvts,
         frequencyId,
         fmFrequencyAttachment);
+    
+    fmFrequencySlider.getProperties().set(
+        "bvs_knobStyle",
+        static_cast<int>(bvs::KnobStyle::Pro));
+
+    fmFrequencySlider.setLookAndFeel(&retroKnobLookAndFeel);
+    fmDepthSlider.setLookAndFeel(&retroKnobLookAndFeel);
+
+    // Restore the value box
+    fmFrequencySlider.setTextBoxStyle(
+        juce::Slider::TextBoxBelow,
+        false,
+        72,
+        16);
+
+    // Keep the red oscillator colour and readable numbers
+    fmFrequencySlider.setColour(
+        juce::Slider::rotarySliderFillColourId,
+        juce::Colour(0xffde6b6b));
+
+    fmFrequencySlider.setColour(
+        juce::Slider::thumbColourId,
+        juce::Colour(0xffa54147));
+
+    fmFrequencySlider.setColour(
+        juce::Slider::textBoxTextColourId,
+        juce::Colour(0xffa54147));
+
+    fmFrequencySlider.setColour(
+        juce::Slider::textBoxBackgroundColourId,
+        juce::Colour(0xfffffdf6));
 
     setSliderAndLabel (
         fmDepthSlider,
@@ -102,6 +133,15 @@ OscComponent::OscComponent (
         apvts,
         amountId,
         fmDepthAttachment);
+    // Apply the metallic retro appearance to FM Frequency only
+    fmFrequencySlider.setLookAndFeel(&retroKnobLookAndFeel);
+
+    // Keep its numeric value underneath
+    fmFrequencySlider.setTextBoxStyle(
+        juce::Slider::TextBoxBelow,
+        false,
+        65,
+        16);
 }
 
 void OscComponent::updateWaveButtons()
@@ -118,21 +158,27 @@ void OscComponent::updateWaveButtons()
         selected == 3, juce::dontSendNotification);
 }
 
-OscComponent::~OscComponent() = default;
+OscComponent::~OscComponent()
+{
+    fmFrequencySlider.setLookAndFeel(nullptr);
+    fmDepthSlider.setLookAndFeel(nullptr);
+}
 
 void OscComponent::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colours::black);
+    // Warm white paper background
+    g.fillAll(juce::Colour(0xfffffdf6));
 
-    g.setColour (juce::Colours::darkgrey);
-    g.drawRect (getLocalBounds(), borderWidth);
+    // Red oscillator border
+    g.setColour(juce::Colour(0xffde6b6b));
+    g.drawRect(getLocalBounds(), 2);
 
-    g.setColour (juce::Colours::white);
-    g.setFont (
-        juce::Font (juce::FontOptions (titleFontSize)));
+    // Soft dark text
+    g.setColour(juce::Colour(0xffb24e4e));
+    g.setFont(KittyFont::make(12.0f));
 
     g.drawText (
-        "Oscillator / FM Modulation",
+        "OSCILLATOR / FM MODULATION",
         getLocalBounds()
             .reduced (panelPadding)
             .removeFromTop (titleHeight),
@@ -209,6 +255,31 @@ void OscComponent::setSliderAndLabel (
         textBoxHeight);
 
     slider.setName (label.getText());
+    
+    // Red oscillator knobs and readable numbers
+    const auto red = juce::Colour(0xffde6b6b);
+    const auto darkRed = juce::Colour(0xffa54147);
+
+    slider.setColour(
+        juce::Slider::rotarySliderFillColourId, red);
+
+    slider.setColour(
+        juce::Slider::rotarySliderOutlineColourId,
+        red.withAlpha(0.40f));
+
+    slider.setColour(
+        juce::Slider::thumbColourId, darkRed);
+
+    slider.setColour(
+        juce::Slider::textBoxTextColourId, darkRed);
+
+    slider.setColour(
+        juce::Slider::textBoxBackgroundColourId,
+        juce::Colour(0xfffffdf6));
+
+    slider.setColour(
+        juce::Slider::textBoxOutlineColourId,
+        darkRed.withAlpha(0.65f));
 
     addAndMakeVisible (slider);
 
@@ -219,10 +290,9 @@ void OscComponent::setSliderAndLabel (
 
     label.setColour (
         juce::Label::textColourId,
-        juce::Colours::white);
+        juce::Colour(0xffa54147));
 
-    label.setFont (
-        juce::Font (juce::FontOptions (labelFontSize)));
+    label.setFont(KittyFont::make(15.0f));
 
     label.setJustificationType (
         juce::Justification::centred);
@@ -262,10 +332,11 @@ void OscComponent::paintOverChildren(juce::Graphics& g)
         static_cast<float>(fmDepthSlider.getY())
         + knobArea.getCentreY();
 
-    const float radius =
-        juce::jmin(knobArea.getWidth(), knobArea.getHeight()) * 0.5f
-        - knobDrawingPadding
-        + markerOffset;
+    const float knobDiameter = juce::jmin(
+        56.0f,
+        juce::jmin(knobArea.getWidth(), knobArea.getHeight()) - 4.0f);
+
+    const float radius = knobDiameter * 0.5f + 4.0f;
 
     if (radius <= markerRadius)
         return;
@@ -288,7 +359,7 @@ void OscComponent::paintOverChildren(juce::Graphics& g)
     const float markerX = centreX + std::sin(angle) * radius;
     const float markerY = centreY - std::cos(angle) * radius;
 
-    g.setColour(juce::Colour(0xffc084fc));
+    g.setColour(juce::Colour(0xffde6b6b));
 
     g.fillEllipse(
         markerX - markerRadius,
